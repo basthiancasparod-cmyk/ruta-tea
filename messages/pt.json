@@ -1,0 +1,170 @@
+{
+  "common": {
+    "appName": "Dino Aprende",
+    "back": "Voltar",
+    "save": "Salvar",
+    "loading": "Carregando...",
+    "error": "Erro",
+    "retry": "Tentar novamente",
+    "next": "Seguinte",
+    "finish": "Finalizar",
+    "cancel": "Cancelar"
+  },
+  "nav": {
+    "ruta": "Rota",
+    "rincon": "Família",
+    "comunidad": "Comunidade",
+    "herramientas": "Ferramentas",
+    "perfil": "Perfil"
+  },
+  "auth": {
+    "login": "Entrar",
+    "signup": "Criar conta",
+    "email": "E-mail",
+    "password": "Senha",
+    "loginTitle": "Bem-vindo de volta",
+    "signupTitle": "Criar sua conta",
+    "loginError": "E-mail ou senha incorretos",
+    "signupError": "Erro ao criar conta",
+    "logout": "Sair",
+    "noAccount": "Não tem conta?",
+    "hasAccount": "Já tem conta?"
+  },
+  "onboarding": {
+    "title": "Conheça seu filho",
+    "step": "Passo {current} de {total}",
+    "nameLabel": "Qual o nome do seu filho?",
+    "namePlaceholder": "Nome da criança",
+    "ageLabel": "Qual a idade?",
+    "levelLabel": "Nível de suporte TEA",
+    "level1": "Nível 1 - Suporte",
+    "level2": "Nível 2 - Suporte notável",
+    "level3": "Nível 3 - Suporte muito notável",
+    "interestsLabel": "O que ele/ela gosta? (escolha um ou mais)",
+    "sensitivitiesLabel": "Tem sensibilidades sensoriais?",
+    "finish": "Começar aventura!"
+  },
+  "ruta": {
+    "title": "Rota Terapêutica",
+    "progress": "Progresso",
+    "xpTotal": "Total XP",
+    "streak": "Sequência atual",
+    "streakRecord": "Recorde: {days} dias",
+    "lessons": "{done}/{total} lições",
+    "play": "Jogar →",
+    "locked": "Bloqueado",
+    "completed": "Concluída",
+    "available": "Disponível",
+    "ageAndLevel": "{age} anos · Nível {level}",
+    "lessonComplete": "Liçao concluída!",
+    "score": "Você acertou {score} de {total}",
+    "retry": "Repetir",
+    "backToRuta": "Voltar à rota"
+  },
+  "rincon": {
+    "title": "Canto da Família",
+    "subtitle": "Recursos, jogos e guias para toda a família",
+    "categories": {
+      "understanding_tea": "Entendendo o TEA",
+      "first_steps": "Primeiros Passos",
+      "daily_life": "Vida Diária",
+      "emotional_support": "Apoio Emocional",
+      "downloads": "Downloads",
+      "games": "Jogos e Atividades"
+    },
+    "memory": {
+      "title": "Jogo da Memória",
+      "description": "Encontre os pares de pictogramas. Exercite a memória e a atenção!",
+      "easy": "Fácil (6 pares)",
+      "hard": "Difícil (8 pares)",
+      "attempts": "Tentativas",
+      "matches": "Acertos",
+      "won": "Memória completa!",
+      "wonIn": "Você completou o jogo em {attempts} tentativas",
+      "playAgain": "Jogar novamente"
+    },
+    "activities": {
+      "title": "Atividades para Download",
+      "description": "Atividades para colorir, traçar e completar. Marque as que já fizeram.",
+      "print": "Imprimir tudo"
+    }
+  },
+  "comunidad": {
+    "title": "Comunidade",
+    "subtitle": "Conecte-se com outras famílias e terapeutas",
+    "forum": "Fórum",
+    "events": "Próximos Eventos",
+    "groups": "Grupos de Apoio",
+    "noEvents": "Nenhum evento próximo",
+    "noPosts": "Nenhum tópico ainda",
+    "newPost": "Novo tópico",
+    "reply": "Responder",
+    "replies": "respostas",
+    "firstReply": "Seja o primeiro a responder",
+    "postTitle": "Título",
+    "postContent": "Conteúdo",
+    "category": "Categoria",
+    "all": "Todos",
+    "writeReply": "Escreva sua resposta...",
+    "respectMessage": "Seja respeitoso. Esta é uma comunidade de apoio."
+  },
+  "herramientas": {
+    "title": "Ferramentas",
+    "subtitle": "Ferramentas interativas para o dia a dia",
+    "agendaVisual": {
+      "title": "Agenda Visual",
+      "description": "Monte a rotina do dia",
+      "reset": "Reiniciar rotina"
+    },
+    "tableroCAA": {
+      "title": "Quadro CAA",
+      "description": "Comunicação com pictogramas por Fitzgerald Key",
+      "speak": "Falar",
+      "stop": "Parar",
+      "clear": "Limpar",
+      "favorites": "Favoritos",
+      "noFavorites": "Ainda não tem favoritos. Toque na estrela de um pictograma para guardá-lo.",
+      "placeholder": "Toque nos pictogramas para montar uma frase...",
+      "legend": {
+        "social": "Social",
+        "subject": "Pessoa",
+        "verb": "Ação",
+        "object": "Objeto",
+        "descriptive": "Qualidade",
+        "place": "Lugar",
+        "time": "Tempo"
+      }
+    },
+    "emociones": {
+      "title": "Jogo das Emoções",
+      "description": "Aprenda a identificar emoções"
+    }
+  },
+  "config": {
+    "title": "Configurações",
+    "profile": "Perfil da criança",
+    "account": "Conta",
+    "language": "Idioma",
+    "languageLabel": "Idioma do aplicativo",
+    "childInfo": "Informações da criança",
+    "name": "Nome",
+    "age": "Idade",
+    "level": "Nível TEA",
+    "interests": "Interesses",
+    "sensitivities": "Sensibilidades",
+    "email": "E-mail",
+    "role": "Função"
+  },
+  "landing": {
+    "title": "Dino Aprende",
+    "subtitle": "Terapia gamificada para crianças com TEA",
+    "feature1": "Lições Interativas",
+    "feature1Desc": "Rota terapêutica personalizada com atividades divertidas",
+    "feature2": "Canto da Família",
+    "feature2Desc": "Recursos e guias para toda a família",
+    "feature3": "Ferramentas Inclusivas",
+    "feature3Desc": "Agenda visual, quadro CAA e jogos de emoções",
+    "start": "Começar",
+    "login": "Entrar"
+  }
+}

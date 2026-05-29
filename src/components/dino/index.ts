@@ -1,0 +1,1 @@
+export { Dino } from './Dino'
