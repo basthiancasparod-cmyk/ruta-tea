@@ -135,7 +135,13 @@ function Cell({ cell, px, onTap, highlight, scanFocus, scanInactive, gridCol, gr
           style={{ backgroundColor: `${cr.border}20` }} />
       )}
       <div className="flex-1 flex items-center justify-center w-full overflow-hidden">
-        <Pictogram keyword={cell.pictogram_keyword ?? ""} size={pic} />
+        {cell.custom_image_url ? (
+          <img src={cell.custom_image_url} alt={cell.label} className="w-full h-full object-contain rounded-lg" />
+        ) : cell.pictogram_keyword ? (
+          <Pictogram keyword={cell.pictogram_keyword} size={pic} />
+        ) : (
+          <span className="text-4xl opacity-30">❓</span>
+        )}
       </div>
       {(settings?.showLabels ?? true) && (
         <span
@@ -164,6 +170,7 @@ export default function QuickBoardPage() {
   const [tappedId,   setTappedId]   = useState<string | null>(null)
   const [vocabLevel, setVocabLevel] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [fullscreenToolsOpen, setFullscreenToolsOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [boardSettings, setBoardSettings] = useState<CAABoardSettings>(() => {
     if (typeof window === "undefined") return {}
@@ -203,7 +210,11 @@ export default function QuickBoardPage() {
 
   // ── Sync fullscreen state ───────────────────────────
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    const handler = () => {
+      const active = !!document.fullscreenElement
+      setIsFullscreen(active)
+      if (active) setFullscreenToolsOpen(false)
+    }
     document.addEventListener("fullscreenchange", handler)
     return () => document.removeEventListener("fullscreenchange", handler)
   }, [])
@@ -254,7 +265,7 @@ export default function QuickBoardPage() {
     const ro = new ResizeObserver(calc)
     if (gridRef.current) ro.observe(gridRef.current)
     return () => ro.disconnect()
-  }, [showLeg, globalCells.length])
+  }, [showLeg, globalCells.length, fullscreenToolsOpen, isFullscreen])
 
   // Build occupied set for filler positions
   const occupied = new Set(QUICK_CELLS.map(c => `${c.position_row},${c.position_col}`))
@@ -408,6 +419,12 @@ export default function QuickBoardPage() {
     })
   }
 
+  const toolbarActionsVisible = !isFullscreen || fullscreenToolsOpen
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen?.()
+    else document.documentElement.requestFullscreen?.()
+  }
+
   return (
     <div className="flex flex-col h-full bg-surface">
 
@@ -422,52 +439,70 @@ export default function QuickBoardPage() {
           <span className="text-sm font-extrabold text-text-primary flex-1 truncate shrink-0">
             💬 Tablero Rápido
           </span>
-          {/* Acciones */}
-          <button onClick={() => setShowSearch(true)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            🔍
-          </button>
-          <button onClick={() => setKeyboardMode(p => !p)}
-            className={`text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              ${keyboardMode ? 'border-brand bg-brand/10 text-brand' : 'hover:border-brand hover:text-brand'}`}>
-            ⌨️
-          </button>
-          <button onClick={() => setShowHistory(true)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            📊
-          </button>
-          <button onClick={() => setShowSettings(true)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            ⚙️
-          </button>
-          {isScanning ? (
-            <button onClick={() => { stopScan(); setBoardSettings(s => ({ ...s, scanEnabled: false })) }}
-              className="text-sm font-bold border-2 border-accent bg-accent/10 text-accent rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0">
-              🟢 Detener
-            </button>
-          ) : (
-            <button onClick={() => { setBoardSettings(s => ({ ...s, scanEnabled: true })); scanBtnRef.current = true }}
-              className="text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-                hover:border-accent hover:text-accent">
-              🔘 Scan
-            </button>
+          {isFullscreen && (
+            <motion.button onClick={() => setFullscreenToolsOpen(p => !p)}
+              whileTap={{ scale: 0.96 }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-brand/40 bg-brand-bg text-brand shadow-sm transition-all hover:border-brand hover:bg-brand/10"
+              title={fullscreenToolsOpen ? "Ocultar opciones" : "Mostrar opciones"}
+              aria-label={fullscreenToolsOpen ? "Ocultar opciones" : "Mostrar opciones"}>
+              <motion.span
+                animate={{ rotate: fullscreenToolsOpen ? 180 : 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 24 }}
+                className="block text-2xl font-black leading-none"
+              >
+                ›
+              </motion.span>
+            </motion.button>
           )}
-          <button onClick={() => {
-            if (document.fullscreenElement) { document.exitFullscreen?.() }
-            else { document.documentElement.requestFullscreen?.() }
-          }}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+          {/* Acciones */}
+          {toolbarActionsVisible && (
+            <>
+              <button onClick={() => setShowSearch(true)}
+                className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  hover:border-brand hover:text-brand">
+                🔍
+              </button>
+              <button onClick={() => setKeyboardMode(p => !p)}
+                className={`text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  ${keyboardMode ? 'border-brand bg-brand/10 text-brand' : 'hover:border-brand hover:text-brand'}`}>
+                ⌨️
+              </button>
+              <button onClick={() => setShowHistory(true)}
+                className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  hover:border-brand hover:text-brand">
+                📊
+              </button>
+              <button onClick={() => setShowSettings(true)}
+                className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  hover:border-brand hover:text-brand">
+                ⚙️
+              </button>
+              {isScanning ? (
+                <button onClick={() => { stopScan(); setBoardSettings(s => ({ ...s, scanEnabled: false })) }}
+                  className="text-sm font-bold border-2 border-accent bg-accent/10 text-accent rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0">
+                  🟢 Detener
+                </button>
+              ) : (
+                <button onClick={() => { setBoardSettings(s => ({ ...s, scanEnabled: true })); scanBtnRef.current = true }}
+                  className="text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                    hover:border-accent hover:text-accent">
+                  🔘 Scan
+                </button>
+              )}
+            </>
+          )}
+          <button onClick={toggleFullscreen}
+            className="text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
               hover:border-brand hover:text-brand">
             ⛶
           </button>
-          <button onClick={() => setShowLeg(p => !p)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            🎨
-          </button>
+          {toolbarActionsVisible && (
+            <button onClick={() => setShowLeg(p => !p)}
+              className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                hover:border-brand hover:text-brand">
+              🎨
+            </button>
+          )}
         </div>
 
         {/* Leyenda */}

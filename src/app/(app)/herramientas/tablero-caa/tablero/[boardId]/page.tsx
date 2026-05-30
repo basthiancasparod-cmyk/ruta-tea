@@ -72,7 +72,13 @@ function Cell({ cell, px, onTap, highlight, scanFocus, scanInactive, gridCol, gr
           style={{ backgroundColor: cr.border, boxShadow: `inset 0 0 20px ${cr.border}60` }} />
       )}
       <div className="flex-1 flex items-center justify-center w-full overflow-hidden">
-        <Pictogram keyword={cell.pictogram_keyword ?? ""} size={pic} />
+        {cell.custom_image_url ? (
+          <img src={cell.custom_image_url} alt={cell.label} className="w-full h-full object-contain rounded-lg" />
+        ) : cell.pictogram_keyword ? (
+          <Pictogram keyword={cell.pictogram_keyword} size={pic} />
+        ) : (
+          <span className="text-4xl opacity-30">❓</span>
+        )}
       </div>
       {(boardSettings?.showLabels ?? true) && (
         <span
@@ -103,6 +109,7 @@ export default function TableroPage({ params }: { params: Promise<{ boardId: str
   const [tappedId, setTappedId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [fullscreenToolsOpen, setFullscreenToolsOpen] = useState(false)
   const [boardSettings, setBoardSettings] = useState<CAABoardSettings>(() => ({}))
   const [settingsInit, setSettingsInit] = useState(false)
   const topbarRef = useRef<HTMLDivElement>(null)
@@ -232,7 +239,11 @@ export default function TableroPage({ params }: { params: Promise<{ boardId: str
 
   // ── Sync fullscreen state ───────────────────────────────────
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    const handler = () => {
+      const active = !!document.fullscreenElement
+      setIsFullscreen(active)
+      if (active) setFullscreenToolsOpen(false)
+    }
     document.addEventListener("fullscreenchange", handler)
     return () => document.removeEventListener("fullscreenchange", handler)
   }, [])
@@ -261,7 +272,7 @@ export default function TableroPage({ params }: { params: Promise<{ boardId: str
     const ro = new ResizeObserver(calc)
     if (gridRef.current) ro.observe(gridRef.current)
     return () => ro.disconnect()
-  }, [cols, rows, showLeg, globalGridActive, globalCells.length])
+  }, [cols, rows, showLeg, globalGridActive, globalCells.length, fullscreenToolsOpen, isFullscreen])
 
   // Compute occupied positions for filler elements (skip hidden)
   const occupied = new Set(visibleCells.map(c => `${c.position_row},${c.position_col}`))
@@ -365,6 +376,12 @@ export default function TableroPage({ params }: { params: Promise<{ boardId: str
     </div>
   )
 
+  const toolbarActionsVisible = !isFullscreen || fullscreenToolsOpen
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen?.()
+    else document.documentElement.requestFullscreen?.()
+  }
+
   return (
     <div className="flex flex-col h-full bg-surface">
 
@@ -397,75 +414,93 @@ export default function TableroPage({ params }: { params: Promise<{ boardId: str
               {boardGridSet.name}
             </span>
           )}
+          {isFullscreen && (
+            <motion.button onClick={() => setFullscreenToolsOpen(p => !p)}
+              whileTap={{ scale: 0.96 }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-brand/40 bg-brand-bg text-brand shadow-sm transition-all hover:border-brand hover:bg-brand/10"
+              title={fullscreenToolsOpen ? "Ocultar opciones" : "Mostrar opciones"}
+              aria-label={fullscreenToolsOpen ? "Ocultar opciones" : "Mostrar opciones"}>
+              <motion.span
+                animate={{ rotate: fullscreenToolsOpen ? 180 : 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 24 }}
+                className="block text-2xl font-black leading-none"
+              >
+                ›
+              </motion.span>
+            </motion.button>
+          )}
           {/* Vocab level toggle */}
-          {vl.maxLevel > 0 && (
-            <button onClick={() => vl.cycleLevel()}
-              className={`text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-                ${vl.isFilterActive
-                  ? "bg-green-100 border-green-400 text-green-700"
-                  : "hover:border-brand hover:text-brand"}`}>
-              {vl.isFilterActive ? `Nvl ${vl.currentLevel}` : "Nvl ∞"}
-            </button>
+          {toolbarActionsVisible && (
+            <>
+              {vl.maxLevel > 0 && (
+                <button onClick={() => vl.cycleLevel()}
+                  className={`text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                    ${vl.isFilterActive
+                      ? "bg-green-100 border-green-400 text-green-700"
+                      : "hover:border-brand hover:text-brand"}`}>
+                  {vl.isFilterActive ? `Nvl ${vl.currentLevel}` : "Nvl ∞"}
+                </button>
+              )}
+              <button onClick={() => setShowSearch(true)}
+                className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  hover:border-brand hover:text-brand">
+                🔍
+              </button>
+              <button onClick={() => setKeyboardMode(p => !p)}
+                className={`text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  ${keyboardMode ? 'border-brand bg-brand/10 text-brand' : 'hover:border-brand hover:text-brand'}`}>
+                ⌨️
+              </button>
+              <button onClick={() => setShowHistory(true)}
+                className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  hover:border-brand hover:text-brand">
+                📊
+              </button>
+              <button onClick={() => setShowSettings(true)}
+                className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  hover:border-brand hover:text-brand">
+                ⚙️
+              </button>
+              {isScanning ? (
+                <button onClick={stopScan}
+                  className="text-sm font-bold border-2 border-accent bg-accent/10 text-accent rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0">
+                  🟢 Detener
+                </button>
+              ) : (
+                <button onClick={startScan}
+                  className="text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                    hover:border-accent hover:text-accent">
+                  🔘 Scan
+                </button>
+              )}
+              {/* Lock/unlock */}
+              <button onClick={handleLockToggle}
+                className={`text-sm font-bold border-2 rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                  ${isLocked ? "bg-amber-100 border-amber-400 text-amber-700" : "border-border hover:border-brand hover:text-brand"}`}>
+                {isLocked ? `🔒 ${unlockCounter < 5 ? unlockCounter : ""}` : "🔓"}
+              </button>
+              {/* Edit link — hidden when locked */}
+              {!isLocked && (
+                <button onClick={() => router.push(`/herramientas/tablero-caa/editor/${boardId}`)}
+                  className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                    hover:border-brand hover:text-brand">
+                  ✏️
+                </button>
+              )}
+            </>
           )}
-          <button onClick={() => setShowSearch(true)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            🔍
-          </button>
-          <button onClick={() => setKeyboardMode(p => !p)}
-            className={`text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              ${keyboardMode ? 'border-brand bg-brand/10 text-brand' : 'hover:border-brand hover:text-brand'}`}>
-            ⌨️
-          </button>
-          <button onClick={() => setShowHistory(true)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            📊
-          </button>
-          <button onClick={() => setShowSettings(true)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            ⚙️
-          </button>
-          {isScanning ? (
-            <button onClick={stopScan}
-              className="text-sm font-bold border-2 border-accent bg-accent/10 text-accent rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0">
-              🟢 Detener
-            </button>
-          ) : (
-            <button onClick={startScan}
-              className="text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-                hover:border-accent hover:text-accent">
-              🔘 Scan
-            </button>
-          )}
-          {/* Lock/unlock */}
-          <button onClick={handleLockToggle}
-            className={`text-sm font-bold border-2 rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              ${isLocked ? "bg-amber-100 border-amber-400 text-amber-700" : "border-border hover:border-brand hover:text-brand"}`}>
-            {isLocked ? `🔒 ${unlockCounter < 5 ? unlockCounter : ""}` : "🔓"}
-          </button>
-          {/* Edit link — hidden when locked */}
-          {!isLocked && (
-            <button onClick={() => router.push(`/herramientas/tablero-caa/editor/${boardId}`)}
-              className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-                hover:border-brand hover:text-brand">
-              ✏️
-            </button>
-          )}
-          <button onClick={() => {
-            if (document.fullscreenElement) { document.exitFullscreen?.() }
-            else { document.documentElement.requestFullscreen?.() }
-          }}
+          <button onClick={toggleFullscreen}
             className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
               hover:border-brand hover:text-brand">
             ⛶
           </button>
-          <button onClick={() => setShowLeg(p => !p)}
-            className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
-              hover:border-brand hover:text-brand">
-            🎨
-          </button>
+          {toolbarActionsVisible && (
+            <button onClick={() => setShowLeg(p => !p)}
+              className="text-base border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
+                hover:border-brand hover:text-brand">
+              🎨
+            </button>
+          )}
         </div>
 
         {/* Leyenda */}
