@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
+    "date-fns": "^4.4.0",
     "framer-motion": "^12.40.0",
     "next": "16.2.6",
     "next-intl": "^4.13.0",

@@ -142,18 +142,43 @@
   },
   "config": {
     "title": "Configuración",
+    "subtitle": "Personaliza la experiencia",
     "profile": "Perfil del niño",
+    "preferences": "Preferencias",
     "account": "Cuenta",
+    "theme": "Tema",
     "language": "Idioma",
     "languageLabel": "Idioma de la aplicación",
     "childInfo": "Información del niño",
     "name": "Nombre",
     "age": "Edad",
+    "ageRange": "{age} años · Nivel {level} TEA",
     "level": "Nivel TEA",
     "interests": "Intereses",
     "sensitivities": "Sensibilidades",
     "email": "Correo electrónico",
-    "role": "Rol"
+    "role": "Rol",
+    "sounds": "Sonidos",
+    "reducedMotion": "Reducir animaciones",
+    "fontSize": "Tamaño de letra",
+    "version": "Versión 0.1.0 · Beta",
+    "roles": {
+      "parent": "Padre/Madre",
+      "professional": "Profesional"
+    },
+    "fontSizes": {
+      "normal": "Normal",
+      "large": "Grande",
+      "xlarge": "Muy grande"
+    },
+    "themes": {
+      "default": "Clásico",
+      "pastel": "Pastel",
+      "rainbow": "Arcoíris",
+      "ocean": "Océano",
+      "sunset": "Atardecer",
+      "forest": "Bosque"
+    }
   },
   "landing": {
     "title": "Dino Aprende",

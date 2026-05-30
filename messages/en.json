@@ -142,18 +142,43 @@
   },
   "config": {
     "title": "Settings",
+    "subtitle": "Customize the experience",
     "profile": "Child's profile",
+    "preferences": "Preferences",
     "account": "Account",
+    "theme": "Theme",
     "language": "Language",
     "languageLabel": "Application language",
     "childInfo": "Child information",
     "name": "Name",
     "age": "Age",
+    "ageRange": "{age} years · TEA Level {level}",
     "level": "TEA Level",
     "interests": "Interests",
     "sensitivities": "Sensitivities",
     "email": "Email",
-    "role": "Role"
+    "role": "Role",
+    "sounds": "Sounds",
+    "reducedMotion": "Reduce animations",
+    "fontSize": "Font size",
+    "version": "Version 0.1.0 · Beta",
+    "roles": {
+      "parent": "Parent",
+      "professional": "Professional"
+    },
+    "fontSizes": {
+      "normal": "Normal",
+      "large": "Large",
+      "xlarge": "Extra large"
+    },
+    "themes": {
+      "default": "Classic",
+      "pastel": "Pastel",
+      "rainbow": "Rainbow",
+      "ocean": "Ocean",
+      "sunset": "Sunset",
+      "forest": "Forest"
+    }
   },
   "landing": {
     "title": "Dino Aprende",
