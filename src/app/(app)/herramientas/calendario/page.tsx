@@ -191,7 +191,7 @@ function CalendarPage() {
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <img src="/assets/dino-modulo-calendario.png" alt="Dino calendario" className="w-16 h-16 object-contain" />
+        <img src="/assets/dino-modulo-calendario.png" alt="Dino calendario" width={138} height={161} className="object-contain" />
         <p className="text-base font-bold text-text-primary text-center">¿Qué hacemos hoy?</p>
         {!loading && nextEvent && (
           <p className="text-xs font-bold text-text-muted bg-brand-bg/50 px-3 py-1 rounded-full">
