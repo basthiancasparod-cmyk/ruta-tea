@@ -1,25 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useLocale } from 'next-intl'
+import { useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { Card } from '@/components/ui/Card'
 import { Lumi } from '@/components/lumi/Lumi'
 import { AvatarUpload } from '@/components/ui/AvatarUpload'
 import { useSupabase } from '@/components/layout/SupabaseProvider'
 import { useChildren } from '@/lib/hooks/useData'
-import { themes, setCookieTheme, getCookieTheme } from '@/lib/theme/themes'
+import { themes, setCookieTheme, getCookieTheme, applyTheme } from '@/lib/theme/themes'
 import type { ThemeId } from '@/lib/theme/themes'
 
 export default function ConfiguracionPage() {
+  const t = useTranslations('config')
   const { profile } = useSupabase()
   const { children } = useChildren()
   const child = children[0]
-  const [childAvatarUrl, setChildAvatarUrl] = useState<string | null | undefined>(child?.avatar_url)
+  const [childAvatarUrl, setChildAvatarUrl] = useState<string | null | undefined>(undefined)
   const currentLocale = useLocale()
-
-  useEffect(() => {
-    setChildAvatarUrl(child?.avatar_url)
-  }, [child?.avatar_url])
 
   const handleAvatarUpdate = (url: string | null) => {
     setChildAvatarUrl(url)
@@ -28,16 +25,12 @@ export default function ConfiguracionPage() {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [reducedMotion, setReducedMotion] = useState(false)
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal')
-  const [activeTheme, setActiveTheme] = useState<ThemeId>('default')
-
-  useEffect(() => {
-    setActiveTheme(getCookieTheme())
-  }, [])
+  const [activeTheme, setActiveTheme] = useState<ThemeId>(() => getCookieTheme())
 
   const switchTheme = (id: ThemeId) => {
     setActiveTheme(id)
     setCookieTheme(id)
-    document.documentElement.setAttribute('data-theme', id)
+    applyTheme(id)
   }
 
   const locales = [
@@ -47,7 +40,8 @@ export default function ConfiguracionPage() {
   ]
 
   const switchLocale = (locale: string) => {
-    document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=31536000`
+    // eslint-disable-next-line react-hooks/immutability
+    document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=31536000;samesite=lax`
     window.location.reload()
   }
 
@@ -56,30 +50,30 @@ export default function ConfiguracionPage() {
       <div className="flex items-center gap-3">
         <Lumi mood="idle" size="sm" />
         <div>
-          <h1 className="heading-page">Configuración</h1>
-          <p className="text-body">Personaliza la experiencia</p>
+          <h1 className="heading-page">{t('title')}</h1>
+          <p className="text-body">{t('subtitle')}</p>
         </div>
       </div>
 
       {child && (
         <Card variant="bordered" padding="md">
-          <h2 className="heading-section mb-3">Perfil del niño</h2>
+          <h2 className="heading-section mb-3">{t('profile')}</h2>
           <AvatarUpload
             childId={child.id}
-            currentUrl={childAvatarUrl}
+            currentUrl={childAvatarUrl === undefined ? child.avatar_url : childAvatarUrl}
             currentEmoji={child.avatar_pictogram}
             name={child.name}
             onUpdate={handleAvatarUpdate}
           />
-          <div className="mt-3">
-            <p className="font-bold text-text-primary">{child.name}</p>
-            <p className="text-sm text-text-secondary">
-              {child.age_range} años · Nivel {child.tea_level} TEA
+            <div className="mt-3">
+            <p className="heading-card">{child.name}</p>
+            <p className="text-body">
+              {t('ageRange', { age: child.age_range, level: child.tea_level })}
             </p>
           </div>
           {child.interests.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-bold text-text-muted mb-1">Intereses:</p>
+              <p className="text-badge mb-1">{t('interests')}:</p>
               <div className="flex gap-1 flex-wrap">
                 {child.interests.map((i) => (
                   <span key={i} className="text-xs bg-brand-bg text-brand font-bold px-2 py-0.5 rounded-full">
@@ -93,28 +87,28 @@ export default function ConfiguracionPage() {
       )}
 
       <Card variant="default" padding="md">
-        <h2 className="heading-section mb-4">Preferencias</h2>
+        <h2 className="heading-section mb-4">{t('preferences')}</h2>
         <div className="flex flex-col gap-4">
           <div>
-            <span className="font-bold text-text-primary block mb-2">🎨 Tema</span>
+            <span className="heading-card block mb-2">🎨 {t('theme')}</span>
             <div className="grid grid-cols-3 gap-2">
-              {themes.map((t) => (
+              {themes.map((theme) => (
                 <button
-                  key={t.id}
-                  onClick={() => switchTheme(t.id)}
+                  key={theme.id}
+                  onClick={() => switchTheme(theme.id)}
                   className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl font-bold text-sm transition-all ${
-                    activeTheme === t.id ? 'bg-brand text-white ring-2 ring-brand-dark' : 'bg-surface border border-border text-text-secondary hover:border-brand'
+                    activeTheme === theme.id ? 'bg-brand text-white ring-2 ring-brand-dark' : 'bg-surface border border-border text-text-secondary hover:border-brand'
                   }`}
                 >
-                  <span className="text-xl">{t.emoji}</span>
-                  <span className="text-[11px]">{t.label}</span>
+                  <span className="text-xl">{theme.emoji}</span>
+                  <span className="text-xs">{t(`themes.${theme.id}`)}</span>
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <span className="font-bold text-text-primary block mb-2">🌐 Idioma</span>
+            <span className="heading-card block mb-2">🌐 {t('language')}</span>
             <div className="flex gap-2">
               {locales.map((loc) => (
                 <button
@@ -131,7 +125,7 @@ export default function ConfiguracionPage() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="font-bold text-text-primary">🔊 Sonidos</span>
+            <span className="heading-card">🔊 {t('sounds')}</span>
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               className={`w-12 h-6 rounded-full transition-colors ${soundEnabled ? 'bg-brand' : 'bg-border'} relative`}
@@ -141,7 +135,7 @@ export default function ConfiguracionPage() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="font-bold text-text-primary">🎬 Reducir animaciones</span>
+            <span className="heading-card">🎬 {t('reducedMotion')}</span>
             <button
               onClick={() => setReducedMotion(!reducedMotion)}
               className={`w-12 h-6 rounded-full transition-colors ${reducedMotion ? 'bg-brand' : 'bg-border'} relative`}
@@ -151,7 +145,7 @@ export default function ConfiguracionPage() {
           </div>
 
           <div>
-            <span className="font-bold text-text-primary block mb-2">🔤 Tamaño de letra</span>
+            <span className="heading-card block mb-2">🔤 {t('fontSize')}</span>
             <div className="flex gap-2">
               {(['normal', 'large', 'xlarge'] as const).map((size) => (
                 <button
@@ -159,7 +153,7 @@ export default function ConfiguracionPage() {
                   onClick={() => setFontSize(size)}
                   className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${fontSize === size ? 'bg-brand text-white' : 'bg-surface border border-border text-text-secondary'}`}
                 >
-                  {size === 'normal' ? 'Normal' : size === 'large' ? 'Grande' : 'Muy grande'}
+                  {t(`fontSizes.${size}`)}
                 </button>
               ))}
             </div>
@@ -169,9 +163,9 @@ export default function ConfiguracionPage() {
 
       {profile && (
         <Card variant="default" padding="md">
-          <h2 className="heading-section mb-2">Cuenta</h2>
-          <p className="text-sm text-text-secondary">Rol: {profile.role === 'parent' ? 'Padre/Madre' : 'Profesional'}</p>
-          <p className="text-xs text-text-muted mt-3">Versión 0.1.0 · Beta</p>
+          <h2 className="heading-section mb-2">{t('account')}</h2>
+          <p className="text-body">{t('role')}: {profile.role === 'parent' ? t('roles.parent') : t('roles.professional')}</p>
+          <p className="text-meta mt-3">{t('version')}</p>
         </Card>
       )}
     </div>

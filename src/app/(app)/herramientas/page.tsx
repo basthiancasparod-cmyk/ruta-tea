@@ -6,6 +6,14 @@ import { motion } from 'framer-motion'
 
 const tools = [
   {
+    href: '/herramientas/tablero-caa',
+    img: '/assets/tablero-aac.png',
+    title: 'Tablero de Comunicación (AAC)',
+    desc: 'Comunicación aumentativa con pictogramas y voz',
+    gradient: 'from-green-100 to-emerald-50',
+    iconBg: 'bg-green-100',
+  },
+  {
     href: '/herramientas/agenda-visual',
     img: '/assets/agenda-visual.png',
     title: 'Agenda Visual',
@@ -14,12 +22,12 @@ const tools = [
     iconBg: 'bg-blue-100',
   },
   {
-    href: '/herramientas/tablero-caa',
-    img: '/assets/tablero-aac.png',
-    title: 'Tablero de Comunicación',
-    desc: 'Comunicación aumentativa con pictogramas y voz',
-    gradient: 'from-green-100 to-emerald-50',
-    iconBg: 'bg-green-100',
+    href: '/herramientas/temporizador-visual',
+    img: '/assets/dino-temporizador.png',
+    title: 'Temporizador',
+    desc: 'Cuenta regresiva visual para anticipar cambios',
+    gradient: 'from-orange-100 to-amber-50',
+    iconBg: 'bg-orange-100',
   },
   {
     href: '/herramientas/emociones',
@@ -28,6 +36,46 @@ const tools = [
     desc: 'Aprende a reconocer y expresar emociones',
     gradient: 'from-yellow-100 to-amber-50',
     iconBg: 'bg-yellow-100',
+  },
+  {
+    href: '/herramientas/primero-despues',
+    img: '/assets/dino-an-des.png',
+    title: 'Primero - Después',
+    desc: 'Organiza actividades con estructura clara',
+    gradient: 'from-indigo-100 to-blue-50',
+    iconBg: 'bg-indigo-100',
+  },
+  {
+    href: '/herramientas/rincon-calma',
+    img: '/assets/dino-calma.png',
+    title: 'Rincón de Calma',
+    desc: 'Herramientas para regulacion emocional',
+    gradient: 'from-teal-100 to-emerald-50',
+    iconBg: 'bg-teal-100',
+  },
+  {
+    href: '/herramientas/registro-conducta',
+    img: '/assets/dino-conducta.png',
+    title: 'Registro de Conducta',
+    desc: 'Seguimiento de comportamientos y progreso',
+    gradient: 'from-red-100 to-pink-50',
+    iconBg: 'bg-red-100',
+  },
+  {
+    href: '/herramientas/calendario',
+    img: '/assets/dino-calendario.png',
+    title: 'Calendario',
+    desc: 'Visualiza eventos importantes del mes',
+    gradient: 'from-cyan-100 to-blue-50',
+    iconBg: 'bg-cyan-100',
+  },
+{
+    href: '/herramientas/historias-sociales',
+    img: '/assets/dino-historias.png',
+    title: 'Historias Sociales',
+    desc: 'Aprende situaciones nuevas paso a paso',
+    gradient: 'from-purple-100 to-pink-50',
+    iconBg: 'bg-purple-100',
   },
 ]
 

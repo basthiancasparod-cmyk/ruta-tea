@@ -135,6 +135,34 @@ export interface SupportGroup {
 }
 
 // ... código existente ...
+export type RepeatType = 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly'
+
+export interface RepeatConfig {
+  days?: number[]        // 0=Sun..6=Sat for weekly
+  interval?: number      // every N weeks (biweekly = 2)
+  monthDay?: number      // day of month for monthly
+  endDate?: string       // optional end date YYYY-MM-DD
+  occurrences?: number   // optional max occurrences
+}
+
+export type EventCategory = 'general' | 'terapia' | 'escuela' | 'medico' | 'juego' | 'comida' | 'social' | 'transporte'
+
+export interface CalendarEvent {
+  id: string
+  child_id: string
+  title: string
+  description?: string
+  event_date: string
+  event_time?: string | null
+  end_time?: string | null
+  all_day: boolean
+  repeat_type: RepeatType
+  category: EventCategory
+  repeat_config?: RepeatConfig | null
+  created_at: string
+  updated_at: string
+}
+
 export * from './curriculum'
 export * from './caa'
 
