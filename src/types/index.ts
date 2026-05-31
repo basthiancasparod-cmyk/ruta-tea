@@ -163,7 +163,43 @@ export interface CalendarEvent {
   updated_at: string
 }
 
-export * from './curriculum'
-export * from './caa'
+export interface TokenSession {
+  id: string
+  child_id: string
+  reward_text: string
+  reward_emoji: string
+  total_tokens: number
+  earned_tokens: number
+  is_completed: boolean
+  session_date: string
+  created_at: string
+  updated_at: string
+}
 
+export type BehaviorType = 'positive' | 'challenging' | 'neutral'
+
+export interface BehaviorLog {
+  id: string
+  child_id: string
+  behavior_type: BehaviorType
+  category?: string
+  intensity?: number | null
+  description: string
+  antecedent?: string
+  consequence?: string
+  mood_before?: number | null
+  mood_after?: number | null
+  logged_at: string
+  created_at: string
+}
+
+export type BehaviorCategory = {
+  id: string
+  label: string
+  emoji: string
+  type: BehaviorType
+  color: string
+}
+
+export * from './curriculum'
 export * from './caa'
