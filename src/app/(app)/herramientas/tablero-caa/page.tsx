@@ -80,6 +80,11 @@ export default function TableroCAAPage() {
         </div>
       </div>
 
+      <div className="flex flex-col items-center gap-2 text-center py-2">
+        <img src="/assets/dino-tablero-aac.png" alt="" width={138} height={161} className="object-contain" />
+        <p className="text-base font-bold text-text-primary">¡Construye frases y comunícate con pictogramas!</p>
+      </div>
+
       {/* Quick Actions */}
       <div>
         <h2 className="text-sm font-extrabold text-text-secondary mb-3 tracking-wide">
@@ -211,7 +216,7 @@ export default function TableroCAAPage() {
 
       {/* Getting Started */}
       {boards.length === 0 && !loading && (
-        <Card variant="default" padding="lg">
+        <Card variant="highlight" padding="lg">
           <div className="text-center">
             <div className="text-5xl mb-4">💬</div>
             <h3 className="heading-section mb-2">
