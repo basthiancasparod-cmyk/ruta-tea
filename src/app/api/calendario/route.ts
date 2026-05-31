@@ -43,6 +43,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "childId and title required" }, { status: 400 })
   }
 
+  const { data: child } = await supabase.from("children").select("id").eq("id", childId).eq("profile_id", user.id).maybeSingle()
+  if (!child) return NextResponse.json({ error: "Child not found or access denied" }, { status: 404 })
+
   const { data, error } = await supabase
     .from("calendar_events")
     .insert({

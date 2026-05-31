@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -53,11 +53,13 @@ function CalendarPage() {
   const [dragEventId, setDragEventId] = useState<string | null>(null)
   const [showYearPicker, setShowYearPicker] = useState(false)
   const [filterCategory, setFilterCategory] = useState<EventCategory | 'all'>('all')
+  const [yearInput, setYearInput] = useState('')
   const gridRef = useRef<HTMLDivElement>(null)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth() + 1
-  const { events, loading, error, addEvent, updateEvent, deleteEvent, moveEvent } = useCalendario(child?.id ?? null, year, month)
+  const { events, loading, error, addEvent, updateEvent, deleteEvent, moveEvent, clearError } = useCalendario(child?.id ?? null, year, month)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
@@ -133,7 +135,8 @@ function CalendarPage() {
 
   const handleDrop = async (targetDate: string) => {
     if (dragEventId && dragOverDate) {
-      await moveEvent(dragEventId, targetDate)
+      const err = await moveEvent(dragEventId, child!.id, targetDate)
+      if (err) setErrorMsg(err)
     }
     setDragEventId(null)
     setDragOverDate(null)
@@ -144,44 +147,55 @@ function CalendarPage() {
     all_day: boolean; event_time: string | null;
     category: EventCategory; repeat_type: RepeatType; repeat_config?: RepeatConfig | null
   }) => {
-    try {
-      if (editingEvent) {
-        await updateEvent(editingEvent.id, {
-          ...data,
-          event_date: modalDate,
-          event_time: data.event_time || null,
-          end_time: null,
-          repeat_config: data.repeat_config ?? null,
-        })
-      } else {
-        await addEvent({
-          child_id: child!.id,
-          title: data.title,
-          description: data.description,
-          all_day: data.all_day,
-          event_time: data.event_time || null,
-          end_time: null,
-          event_date: modalDate,
-          repeat_type: data.repeat_type,
-          category: data.category,
-          repeat_config: data.repeat_config ?? null,
-        })
-      }
-      setShowEventModal(false)
-    } catch (err) {
-      console.error('Error saving event:', err)
+    setErrorMsg(null)
+    if (editingEvent) {
+      const err = await updateEvent(editingEvent.id, child!.id, {
+        ...data,
+        event_date: modalDate,
+        event_time: data.event_time || null,
+        end_time: null,
+        repeat_config: data.repeat_config ?? null,
+      })
+      if (err) { setErrorMsg(err); return }
+    } else {
+      const id = await addEvent({
+        child_id: child!.id,
+        title: data.title,
+        description: data.description,
+        all_day: data.all_day,
+        event_time: data.event_time || null,
+        end_time: null,
+        event_date: modalDate,
+        repeat_type: data.repeat_type,
+        category: data.category,
+        repeat_config: data.repeat_config ?? null,
+      })
+      if (!id) { setErrorMsg('Error al crear el evento'); return }
     }
+    setShowEventModal(false)
   }
 
   const handleDeleteEvent = async () => {
     if (editingEvent) {
-      await deleteEvent(editingEvent.id)
+      setErrorMsg(null)
+      const err = await deleteEvent(editingEvent.id, child!.id)
+      if (err) { setErrorMsg(err); return }
       setShowEventModal(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
+      <div className="flex flex-col gap-4 pb-8">
+      {/* Error banner */}
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+          <span className="text-red-500 text-sm">⚠️</span>
+          <p className="text-xs font-bold text-red-700 flex-1">{errorMsg}</p>
+          <button onClick={() => setErrorMsg(null)} className="text-xs font-bold text-red-500 hover:text-red-700">✕</button>
+        </div>
+      )}
+
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>← Atrás</Button>
         <div>
@@ -191,7 +205,8 @@ function CalendarPage() {
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <img src="/assets/dino-modulo-calendario.png" alt="Dino calendario" width={138} height={161} className="object-contain" />
+        <img src="/assets/dino-modulo-calendario.png" alt="Dino calendario" width={138} height={161} className="object-contain"
+          onError={(e) => { (e.target as HTMLImageElement).src = '/assets/dino-temporizador.png' }} />
         <p className="text-base font-bold text-text-primary text-center">¿Qué hacemos hoy?</p>
         {!loading && nextEvent && (
           <p className="text-xs font-bold text-text-muted bg-brand-bg/50 px-3 py-1 rounded-full">
@@ -248,7 +263,10 @@ function CalendarPage() {
             <div className="relative">
               <button onClick={() => setShowYearPicker(!showYearPicker)}
                 className="heading-section capitalize hover:text-brand transition-colors">
-                {format(currentDate, viewMode === 'month' ? 'MMMM yyyy' : "'Semana del' d 'de' MMMM", { locale: es })}
+                {viewMode === 'month'
+                  ? format(currentDate, 'MMMM yyyy', { locale: es })
+                  : `Sem ${format(weekDays[0], "d MMM", { locale: es })} - ${format(weekDays[6], "d MMM", { locale: es })}`
+                }
               </button>
               <AnimatePresence>
                 {showYearPicker && (
@@ -262,8 +280,10 @@ function CalendarPage() {
                       <button type="button" onClick={() => setCurrentDate(subMonths(currentDate, 12))}
                         className="text-xs font-bold text-text-secondary hover:text-brand transition-colors p-1">◀◀</button>
                       <div className="flex items-center gap-1">
-                        <input type="text" inputMode="numeric" value={currentDate.getFullYear()}
-                          onChange={(e) => { const v = e.target.value; if (/^\d{0,4}$/.test(v)) { const y = parseInt(v); if (v.length === 4 && y >= 2024 && y <= 2099) setCurrentDate(new Date(y, currentDate.getMonth(), 1)) } }}
+                        <input type="text" inputMode="numeric"
+                          value={showYearPicker ? (yearInput || String(currentDate.getFullYear())) : String(currentDate.getFullYear())}
+                          onChange={(e) => { const v = e.target.value; if (/^\d{0,4}$/.test(v)) { setYearInput(v); const y = parseInt(v); if (v.length === 4 && y >= 2024 && y <= 2099) setCurrentDate(new Date(y, currentDate.getMonth(), 1)) } }}
+                          onBlur={() => setYearInput('')}
                           className="w-16 text-center text-sm font-extrabold text-text-primary bg-surface-secondary rounded-lg px-2 py-1 border border-border focus:border-brand focus:outline-none" />
                       </div>
                       <button type="button" onClick={() => setCurrentDate(addMonths(currentDate, 12))}
@@ -592,6 +612,17 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
   const [repeatWeekDays, setRepeatWeekDays] = useState<number[]>(event?.repeat_config?.days ?? [1, 3, 5])
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const catRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setSaving(false) }, [event?.id, date])
+
+  useEffect(() => {
+    if (!showCategoryDropdown) return
+    const onClick = (e: MouseEvent) => { if (catRef.current && !catRef.current.contains(e.target as Node)) setShowCategoryDropdown(false) }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [showCategoryDropdown])
 
   const pickCategory = (cat: EventCategory) => {
     setCategory(cat)
@@ -603,7 +634,8 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || saving) return
+    setSaving(true)
     onSave({
       title: title.trim(),
       description: description.trim(),
@@ -684,7 +716,7 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
               </div>
             )}
 
-            <div>
+            <div ref={catRef}>
               <label className="block text-xs font-bold text-text-secondary mb-1">Categoría</label>
               <button type="button" onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 className="w-full px-3 py-2 rounded-xl border-2 border-border bg-white text-sm font-medium text-left flex items-center gap-2 hover:border-brand transition-colors">
@@ -743,9 +775,9 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
                 className="px-4 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-secondary transition-colors">
                 Cancelar
               </button>
-              <button type="submit" disabled={!title.trim()}
+              <button type="submit" disabled={!title.trim() || saving}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50">
-                {event ? 'Guardar' : 'Crear'}
+                {saving ? 'Guardando...' : event ? 'Guardar' : 'Crear'}
               </button>
             </div>
           </form>

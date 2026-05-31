@@ -7,7 +7,7 @@ export async function PATCH(req: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { eventId, ...updates } = body
+  const { eventId, childId, ...updates } = body
   if (!eventId) return NextResponse.json({ error: "eventId required" }, { status: 400 })
 
   const payload: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() }
@@ -18,10 +18,12 @@ export async function PATCH(req: Request) {
     .from("calendar_events")
     .update(payload)
     .eq("id", eventId)
+    .eq("child_id", childId)
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!data) return NextResponse.json({ error: "Event not found or access denied" }, { status: 404 })
   return NextResponse.json(data)
 }
 
@@ -32,9 +34,11 @@ export async function DELETE(req: Request) {
 
   const { searchParams } = new URL(req.url)
   const eventId = searchParams.get("eventId")
-  if (!eventId) return NextResponse.json({ error: "eventId required" }, { status: 400 })
+  const childId = searchParams.get("childId")
+  if (!eventId || !childId) return NextResponse.json({ error: "eventId and childId required" }, { status: 400 })
 
-  const { error } = await supabase.from("calendar_events").delete().eq("id", eventId)
+  const { data, error } = await supabase.from("calendar_events").delete().eq("id", eventId).eq("child_id", childId).select()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!data || data.length === 0) return NextResponse.json({ error: "Event not found or access denied" }, { status: 404 })
   return NextResponse.json({ ok: true })
 }
