@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useChildren } from '@/lib/hooks/useData'
 import { useSupabase } from '@/components/layout/SupabaseProvider'
+import { Button } from '@/components/ui/Button'
 import type { TokenSession, BehaviorLog, BehaviorType } from '@/types'
 
 const today = () => new Date().toISOString().split('T')[0]
@@ -49,6 +51,7 @@ const BEHAVIOR_PRESETS: { type: BehaviorType; label: string; emoji: string }[] =
 const REWARD_EMOJIS = ['🎁', '🧩', '🍦', '🎨', '📱', '🧸', '🎮', '🏀', '🎵', '🌈', '🍪', '🚗']
 
 export default function RegistroConductaPage() {
+  const router = useRouter()
   const { children: kids } = useChildren()
   const { supabase } = useSupabase()
   const childId = kids[0]?.id
@@ -251,17 +254,21 @@ export default function RegistroConductaPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-24">
-      {/* Header + Mini Calendar */}
-      <div className="flex items-start gap-4">
-        <div className="flex items-center gap-3 min-w-0 shrink">
-          <img src="/assets/dino-conducta.png" alt="Dino conducta" width={100} height={117} className="object-contain shrink-0" />
-          <div>
-            <h1 className="heading-page">Registro de Conducta</h1>
-            <p className="text-body">Refuerzo positivo y seguimiento diario</p>
-            <p className="text-xs font-bold text-text-muted mt-1">{formatDate(selectedDate)}</p>
-          </div>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>← Atrás</Button>
+        <div className="flex-1">
+          <h1 className="heading-page">Registro de Conducta</h1>
+          <p className="text-body">Refuerzo positivo y seguimiento diario</p>
         </div>
-        <div className="bg-surface rounded-2xl shadow-md border border-border p-3 ml-auto shrink-0 w-[240px]">
+        <p className="text-xs font-bold text-text-muted text-right shrink-0">
+          {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+      </div>
+
+      {/* Mini Calendar */}
+      <div className="flex justify-center">
+        <div className="bg-surface rounded-2xl shadow-md border border-border p-3 w-[260px]">
           <div className="flex items-center justify-between mb-1">
             <button onClick={() => { const d = new Date(calYear, calMonth - 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()) }}
               className="w-6 h-6 rounded-lg text-xs font-bold hover:bg-surface-secondary flex items-center justify-center text-text-muted">◀</button>
