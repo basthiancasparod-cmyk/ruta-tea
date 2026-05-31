@@ -49,6 +49,7 @@ export async function POST(req: Request) {
       consequence: body.consequence ?? "",
       mood_before: body.mood_before ?? null,
       mood_after: body.mood_after ?? null,
+      image_url: body.image_url ?? null,
       logged_at: body.logged_at ?? new Date().toISOString(),
     })
     .select()
@@ -56,4 +57,46 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
+}
+
+export async function PATCH(req: Request) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const body = await req.json()
+  const { logId, ...updates } = body
+  if (!logId) return NextResponse.json({ error: "logId required" }, { status: 400 })
+
+  const { data, error } = await supabase
+    .from("behavior_logs")
+    .update(updates)
+    .eq("id", logId)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
+export async function DELETE(req: Request) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const logId = searchParams.get("logId")
+  if (!logId) return NextResponse.json({ error: "logId required" }, { status: 400 })
+
+  const { data: log } = await supabase.from("behavior_logs").select("image_url").eq("id", logId).single()
+  if (log?.image_url) {
+    const pathMatch = log.image_url.match(/conducta\/(.+)$/)
+    if (pathMatch) {
+      await supabase.storage.from("conducta").remove([pathMatch[1]])
+    }
+  }
+
+  const { error } = await supabase.from("behavior_logs").delete().eq("id", logId)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
 }

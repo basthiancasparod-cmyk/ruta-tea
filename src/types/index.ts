@@ -189,6 +189,7 @@ export interface BehaviorLog {
   consequence?: string
   mood_before?: number | null
   mood_after?: number | null
+  image_url?: string | null
   logged_at: string
   created_at: string
 }

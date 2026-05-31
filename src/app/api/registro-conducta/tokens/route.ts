@@ -67,3 +67,17 @@ export async function PATCH(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
+
+export async function DELETE(req: Request) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const sessionId = searchParams.get("sessionId")
+  if (!sessionId) return NextResponse.json({ error: "sessionId required" }, { status: 400 })
+
+  const { error } = await supabase.from("token_sessions").delete().eq("id", sessionId)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
