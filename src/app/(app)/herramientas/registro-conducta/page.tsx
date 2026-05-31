@@ -44,7 +44,7 @@ const BEHAVIOR_PRESETS: { type: BehaviorType; label: string; emoji: string }[] =
   { type: 'challenging', label: 'Estereotipias intensas', emoji: '🌀' },
   { type: 'challenging', label: 'Gritos/vocalizaciones', emoji: '🔊' },
   { type: 'neutral', label: 'Observación', emoji: '👀' },
-  { type: 'neutral', label: 'Transición', emoji: '🔄' },
+  { type: 'neutral', label: 'Transición', emoji: '➡️' },
   { type: 'neutral', label: 'Descanso', emoji: '💤' },
 ]
 
@@ -93,6 +93,9 @@ export default function RegistroConductaPage() {
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null)
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<string | null>(null)
   const [confirmDeleteSession, setConfirmDeleteSession] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
+  const editImageRef = useRef<HTMLInputElement>(null)
 
   const fetchData = useCallback(async (date: string) => {
     if (!childId) return
@@ -119,11 +122,18 @@ export default function RegistroConductaPage() {
       const res = await fetch(`/api/registro-conducta/logs?childId=${childId}&month=${year}-${String(month + 1).padStart(2, '0')}`)
       const data = await res.json()
       setActiveDates(data.dates ?? [])
-    } catch {}
+    } catch (e) { console.warn('fetchActiveDates', e) }
   }, [childId])
 
   useEffect(() => { fetchData(selectedDate) }, [fetchData, selectedDate])
   useEffect(() => { fetchActiveDates(calYear, calMonth) }, [fetchActiveDates, calYear, calMonth])
+
+  useEffect(() => {
+    return () => {
+      if (logImagePreview) URL.revokeObjectURL(logImagePreview)
+      if (editImagePreview) URL.revokeObjectURL(editImagePreview)
+    }
+  }, [logImagePreview, editImagePreview])
 
   const handleAddToken = async () => {
     if (!childId || !session) return
@@ -184,6 +194,7 @@ export default function RegistroConductaPage() {
     if (!childId || (!logDesc.trim() && !logPreset)) return
     setSaving(true)
     setImageUploading(true)
+    setErrorMsg(null)
     try {
       let imageUrl: string | null = null
       if (logImage) imageUrl = await uploadImage(logImage, childId)
@@ -193,15 +204,16 @@ export default function RegistroConductaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ childId, behavior_type: logType, intensity: logIntensity, description, image_url: imageUrl, logged_at: new Date().toISOString() }),
       })
-      if (res.ok) {
-        const log = await res.json()
-        setLogs(prev => [log, ...prev])
-        setLogDesc('')
-        setLogPreset(null)
-        setLogImage(null)
-        setLogImagePreview(null)
-        if (logType === 'positive') handleAddToken()
-      }
+      if (!res.ok) { setErrorMsg('Error al guardar el registro'); return }
+      const log = await res.json()
+      setLogs(prev => [log, ...prev])
+      setLogDesc('')
+      setLogPreset(null)
+      if (logImagePreview) URL.revokeObjectURL(logImagePreview)
+      setLogImage(null)
+      setLogImagePreview(null)
+      if (logType === 'positive') handleAddToken()
+    } catch { setErrorMsg('Error de conexión al guardar')
     } finally {
       setSaving(false)
       setImageUploading(false)
@@ -209,12 +221,13 @@ export default function RegistroConductaPage() {
   }
 
   const handleEditLog = async () => {
-    if (!editingLog) return
-    setSaving(true)
+    if (!editingLog || !childId) return
+    setEditSaving(true)
+    setErrorMsg(null)
     try {
       let imageUrl = editingLog.image_url
       if (editImage) {
-        const url = await uploadImage(editImage, childId!)
+        const url = await uploadImage(editImage, childId)
         if (url) imageUrl = url
       }
       const res = await fetch('/api/registro-conducta/logs', {
@@ -222,15 +235,17 @@ export default function RegistroConductaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ logId: editingLog.id, description: editDesc, intensity: editIntensity, behavior_type: editType, image_url: imageUrl }),
       })
-      if (res.ok) {
-        const updated = await res.json()
-        setLogs(prev => prev.map(l => l.id === updated.id ? updated : l))
-        setEditingLog(null)
-        setEditImage(null)
-        setEditImagePreview(null)
-      }
+      if (!res.ok) { setErrorMsg('Error al editar el registro'); return }
+      const updated = await res.json()
+      setLogs(prev => prev.map(l => l.id === updated.id ? updated : l))
+      if (editImagePreview) URL.revokeObjectURL(editImagePreview)
+      setEditingLog(null)
+      setEditImage(null)
+      setEditImagePreview(null)
+      setErrorMsg(null)
+    } catch { setErrorMsg('Error de conexión al editar')
     } finally {
-      setSaving(false)
+      setEditSaving(false)
     }
   }
 
@@ -303,7 +318,17 @@ export default function RegistroConductaPage() {
         </div>
       </div>
 
-      {/* Stats Bar */}
+      {/* Error banner */}
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="bg-red-50 border border-red-200 rounded-xl px-4 py-2 flex items-center gap-2">
+            <span className="text-sm">⚠️</span>
+            <p className="text-xs font-bold text-red-700 flex-1">{errorMsg}</p>
+            <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-600 text-xs font-bold">✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <motion.div key={selectedDate} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="bg-surface rounded-2xl shadow-md border border-border p-4">
         <div className="flex items-center justify-around text-center">
@@ -503,7 +528,6 @@ export default function RegistroConductaPage() {
           </div>
         ) : (
           <div className="space-y-1">
-            <AnimatePresence>
               {logs.map((log, i) => (
                 <motion.div key={log.id}
                   initial={{ opacity: 0, x: -10 }}
@@ -545,7 +569,6 @@ export default function RegistroConductaPage() {
                   </div>
                 </motion.div>
               ))}
-            </AnimatePresence>
           </div>
         )}
       </motion.div>
@@ -694,11 +717,11 @@ export default function RegistroConductaPage() {
                     {editingLog.image_url && (
                       <img src={editingLog.image_url} alt="actual" className="h-12 rounded-lg object-cover border border-border" />
                     )}
-                    <button onClick={() => document.getElementById('edit-image-input')?.click()}
+                    <button onClick={() => editImageRef.current?.click()}
                       className="text-xs font-bold text-brand hover:text-brand-dark transition-colors">
                       {editingLog.image_url ? 'Cambiar' : 'Añadir foto'}
                     </button>
-                    <input id="edit-image-input" type="file" accept="image/*" className="hidden"
+                    <input ref={editImageRef} type="file" accept="image/*" className="hidden"
                       onChange={e => { const f = e.target.files?.[0]; if (f) { setEditImage(f); setEditImagePreview(URL.createObjectURL(f)) } }} />
                   </div>
                   {editImagePreview && (
@@ -708,9 +731,9 @@ export default function RegistroConductaPage() {
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => setEditingLog(null)}
                     className="flex-1 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-secondary transition-colors border border-border">Cancelar</button>
-                  <button onClick={handleEditLog} disabled={saving || !editDesc.trim()}
+                  <button onClick={handleEditLog} disabled={editSaving || !editDesc.trim()}
                     className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm">
-                    {saving ? 'Guardando...' : 'Guardar'}
+                    {editSaving ? 'Guardando...' : 'Guardar'}
                   </button>
                 </div>
               </div>
