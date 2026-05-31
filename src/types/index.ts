@@ -194,6 +194,21 @@ export interface BehaviorLog {
   created_at: string
 }
 
+export interface FirstThenBoard {
+  id: string
+  child_id: string
+  title: string
+  first_label: string
+  first_emoji: string
+  first_minutes: number | null
+  then_label: string
+  then_emoji: string
+  then_minutes: number | null
+  is_completed: boolean
+  created_at: string
+  updated_at: string
+}
+
 export type BehaviorCategory = {
   id: string
   label: string
