@@ -277,8 +277,8 @@ export default function RegistroConductaPage() {
               className="w-6 h-6 rounded-lg text-xs font-bold hover:bg-surface-secondary flex items-center justify-center text-text-muted">▶</button>
           </div>
           <div className="grid grid-cols-7 gap-px">
-            {['D','L','M','M','J','V','S'].map(d => (
-              <div key={d} className="text-center text-[9px] font-bold text-text-muted py-0.5">{d}</div>
+            {['D','L','M','M','J','V','S'].map((d, i) => (
+              <div key={`hdr-${i}`} className="text-center text-[9px] font-bold text-text-muted py-0.5">{d}</div>
             ))}
             {getMonthDays(calYear, calMonth).map((d, i) => {
               const ds = d.toISOString().split('T')[0]
