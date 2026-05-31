@@ -182,9 +182,6 @@ export default function TemporizadorVisualPage() {
           <h1 className="heading-page">Temporizador Visual</h1>
           <p className="text-body">Ayuda visual para entender el paso del tiempo</p>
         </div>
-        <p className="text-xs font-bold text-text-muted text-right shrink-0">
-          {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
       </div>
 
       {/* Confetti overlay */}
