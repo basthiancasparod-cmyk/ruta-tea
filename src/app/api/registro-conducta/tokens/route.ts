@@ -14,10 +14,10 @@ export async function GET(req: Request) {
 
   let query = supabase.from("token_sessions").select("*").eq("child_id", childId)
   if (date) query = query.eq("session_date", date)
-  query = query.order("created_at", { ascending: false }).limit(1)
+  query = query.order("created_at", { ascending: false })
 
   const { data: sessions } = await query
-  return NextResponse.json({ session: sessions?.[0] ?? null })
+  return NextResponse.json({ sessions: sessions ?? [] })
 }
 
 export async function POST(req: Request) {
@@ -46,20 +46,25 @@ export async function POST(req: Request) {
   return NextResponse.json(data)
 }
 
+const TOKEN_ALLOWED = new Set(["reward_text", "reward_emoji", "total_tokens", "earned_tokens", "is_completed", "session_date"])
+
 export async function PATCH(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { sessionId, ...updates } = body
+  const { sessionId } = body
   if (!sessionId) return NextResponse.json({ error: "sessionId required" }, { status: 400 })
 
-  const payload: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() }
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  for (const key of TOKEN_ALLOWED) {
+    if (body[key] !== undefined) updates[key] = body[key]
+  }
 
   const { data, error } = await supabase
     .from("token_sessions")
-    .update(payload)
+    .update(updates)
     .eq("id", sessionId)
     .select()
     .single()
