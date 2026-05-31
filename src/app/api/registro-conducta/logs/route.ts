@@ -9,8 +9,27 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const childId = searchParams.get("childId")
   const date = searchParams.get("date")
+  const month = searchParams.get("month")
 
   if (!childId) return NextResponse.json({ error: "childId required" }, { status: 400 })
+
+  if (month) {
+    const [y, m] = month.split("-")
+    const start = `${y}-${m}-01T00:00:00Z`
+    const endY = Number(m) === 12 ? Number(y) + 1 : Number(y)
+    const endM = Number(m) === 12 ? 1 : Number(m) + 1
+    const end = `${endY}-${String(endM).padStart(2, "0")}-01T00:00:00Z`
+
+    const { data: rows } = await supabase
+      .from("behavior_logs")
+      .select("logged_at")
+      .eq("child_id", childId)
+      .gte("logged_at", start)
+      .lt("logged_at", end)
+
+    const dates = [...new Set((rows ?? []).map(r => r.logged_at.split("T")[0]))]
+    return NextResponse.json({ dates })
+  }
 
   let query = supabase.from("behavior_logs").select("*").eq("child_id", childId)
 

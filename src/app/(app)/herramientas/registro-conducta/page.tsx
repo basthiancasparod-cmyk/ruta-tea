@@ -10,19 +10,23 @@ const today = () => new Date().toISOString().split('T')[0]
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
+  return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-function getDays(center: string, radius: number): string[] {
-  const d = new Date(center + 'T12:00:00')
-  const days: string[] = []
-  for (let i = -radius; i <= radius; i++) {
-    const dt = new Date(d)
-    dt.setDate(dt.getDate() + i)
-    days.push(dt.toISOString().split('T')[0])
+function getMonthDays(year: number, month: number) {
+  const first = new Date(year, month, 1)
+  const start = new Date(first)
+  start.setDate(start.getDate() - start.getDay())
+  const days: Date[] = []
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start)
+    d.setDate(d.getDate() + i)
+    days.push(d)
   }
   return days
 }
+
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 const BEHAVIOR_PRESETS: { type: BehaviorType; label: string; emoji: string }[] = [
   { type: 'positive', label: 'Siguió instrucciones', emoji: '✅' },
@@ -51,6 +55,10 @@ export default function RegistroConductaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [selectedDate, setSelectedDate] = useState(today())
+  const now = new Date()
+  const [calYear, setCalYear] = useState(now.getFullYear())
+  const [calMonth, setCalMonth] = useState(now.getMonth())
+  const [activeDates, setActiveDates] = useState<string[]>([])
   const [session, setSession] = useState<TokenSession | null>(null)
   const [logs, setLogs] = useState<BehaviorLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,8 +91,6 @@ export default function RegistroConductaPage() {
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<string | null>(null)
   const [confirmDeleteSession, setConfirmDeleteSession] = useState(false)
 
-  const days = getDays(selectedDate, 7)
-
   const fetchData = useCallback(async (date: string) => {
     if (!childId) return
     setLoading(true)
@@ -104,7 +110,17 @@ export default function RegistroConductaPage() {
     }
   }, [childId])
 
+  const fetchActiveDates = useCallback(async (year: number, month: number) => {
+    if (!childId) return
+    try {
+      const res = await fetch(`/api/registro-conducta/logs?childId=${childId}&month=${year}-${String(month + 1).padStart(2, '0')}`)
+      const data = await res.json()
+      setActiveDates(data.dates ?? [])
+    } catch {}
+  }, [childId])
+
   useEffect(() => { fetchData(selectedDate) }, [fetchData, selectedDate])
+  useEffect(() => { fetchActiveDates(calYear, calMonth) }, [fetchActiveDates, calYear, calMonth])
 
   const handleAddToken = async () => {
     if (!childId || !session) return
@@ -233,35 +249,50 @@ export default function RegistroConductaPage() {
   const positive = logs.filter(l => l.behavior_type === 'positive')
   const challenging = logs.filter(l => l.behavior_type === 'challenging')
 
-  const isToday = selectedDate === today()
-
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/assets/dino-conducta.png" alt="Dino conducta" width={100} height={117} className="object-contain" />
+      {/* Header + Mini Calendar */}
+      <div className="flex items-start gap-4">
+        <div className="flex items-center gap-3 min-w-0 shrink">
+          <img src="/assets/dino-conducta.png" alt="Dino conducta" width={100} height={117} className="object-contain shrink-0" />
           <div>
             <h1 className="heading-page">Registro de Conducta</h1>
             <p className="text-body">Refuerzo positivo y seguimiento diario</p>
+            <p className="text-xs font-bold text-text-muted mt-1">{formatDate(selectedDate)}</p>
           </div>
         </div>
-      </div>
-
-      {/* Day Navigator */}
-      <div className="overflow-x-auto -mx-4 px-4">
-        <div className="flex gap-1.5 w-max">
-          {days.map(d => (
-            <button key={d} onClick={() => setSelectedDate(d)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                d === selectedDate
-                  ? 'bg-brand text-white shadow-sm'
-                  : d === today() ? 'bg-brand-bg text-brand'
-                  : 'bg-surface-secondary text-text-secondary hover:bg-border'
-              }`}>
-              {d === today() ? '📅 Hoy' : formatDate(d)}
-            </button>
-          ))}
+        <div className="bg-surface rounded-2xl shadow-md border border-border p-3 ml-auto shrink-0 w-[240px]">
+          <div className="flex items-center justify-between mb-1">
+            <button onClick={() => { const d = new Date(calYear, calMonth - 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()) }}
+              className="w-6 h-6 rounded-lg text-xs font-bold hover:bg-surface-secondary flex items-center justify-center text-text-muted">◀</button>
+            <span className="text-xs font-bold text-text-primary">{MONTHS[calMonth]} {calYear}</span>
+            <button onClick={() => { const d = new Date(calYear, calMonth + 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()) }}
+              className="w-6 h-6 rounded-lg text-xs font-bold hover:bg-surface-secondary flex items-center justify-center text-text-muted">▶</button>
+          </div>
+          <div className="grid grid-cols-7 gap-px">
+            {['D','L','M','M','J','V','S'].map(d => (
+              <div key={d} className="text-center text-[9px] font-bold text-text-muted py-0.5">{d}</div>
+            ))}
+            {getMonthDays(calYear, calMonth).map((d, i) => {
+              const ds = d.toISOString().split('T')[0]
+              const isCurrentMonth = d.getMonth() === calMonth
+              const isSelected = ds === selectedDate
+              const hasLog = activeDates.includes(ds)
+              const isToday_ = ds === today()
+              return (
+                <button key={i} onClick={() => { setSelectedDate(ds); if (d.getMonth() !== calMonth) { setCalYear(d.getFullYear()); setCalMonth(d.getMonth()) } }}
+                  className={`relative text-center text-[11px] font-bold rounded py-1 transition-all ${
+                    isSelected ? 'bg-brand text-white shadow-sm'
+                    : isToday_ ? 'bg-brand-bg text-brand'
+                    : isCurrentMonth ? 'text-text-primary hover:bg-surface-secondary'
+                    : 'text-text-muted/40'
+                  }`}>
+                  {d.getDate()}
+                  {hasLog && <span className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-brand'}`} />}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -315,7 +346,7 @@ export default function RegistroConductaPage() {
                     className="text-xs font-bold text-text-secondary hover:text-red-500 transition-colors">🗑️</button>
                 </>
               )}
-              {!session && isToday && (
+              {!session && (
                 <button onClick={() => setShowNewBoard(true)}
                   className="text-xs font-bold text-brand hover:text-brand-dark transition-colors">+ Nuevo</button>
               )}
@@ -343,12 +374,15 @@ export default function RegistroConductaPage() {
                   <motion.div key={i}
                     initial={i < session.earned_tokens ? { scale: 0 } : undefined}
                     animate={i < session.earned_tokens ? { scale: 1 } : undefined}
-                    transition={{ type: 'spring', stiffness: 300, damping: 15, delay: i * 0.05 }}>
-                    <img
-                      src={i < session.earned_tokens ? '/eggs/egg-comun-9.png' : '/eggs/egg-comun-0.png'}
-                      alt={i < session.earned_tokens ? 'token ganado' : 'token pendiente'}
-                      className="w-10 h-10 object-contain"
-                    />
+                    transition={{ type: 'spring', stiffness: 300, damping: 15, delay: i * 0.05 }}
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center border-2 ${
+                      i < session.earned_tokens
+                        ? 'border-amber-400 bg-amber-50'
+                        : 'border-dashed border-border bg-surface-secondary'
+                    }`}>
+                    {i < session.earned_tokens ? (
+                      <img src="/eggs/egg-comun-0.png" alt="token" className="w-9 h-9 object-contain" />
+                    ) : null}
                   </motion.div>
                 ))}
               </div>
@@ -359,7 +393,7 @@ export default function RegistroConductaPage() {
                   <p className="text-lg font-black text-green-700">🎉 Recompensa conseguida</p>
                   <p className="text-sm font-bold text-green-600">¡Excelente trabajo!</p>
                 </motion.div>
-              ) : isToday ? (
+              ) : session.earned_tokens < session.total_tokens ? (
                 <button onClick={handleAddToken}
                   className="w-full py-2.5 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm">
                   🥚 Dar token
@@ -374,9 +408,8 @@ export default function RegistroConductaPage() {
         </div>
       </motion.div>
 
-      {/* Quick Log Form - only visible for today */}
-      {isToday && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+      {/* Quick Log Form */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="bg-surface rounded-2xl shadow-md border border-border p-5">
           <h2 className="heading-section flex items-center gap-2 mb-4">
             <span>📝</span> Registrar Conducta
@@ -448,8 +481,6 @@ export default function RegistroConductaPage() {
             </button>
           </div>
         </motion.div>
-      )}
-
       {/* Timeline */}
       <motion.div key={`logs-${selectedDate}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         className="bg-surface rounded-2xl shadow-md border border-border p-5">
