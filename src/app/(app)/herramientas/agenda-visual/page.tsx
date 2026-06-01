@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 import { Pictogram } from '@/components/ui/Pictogram'
 import { useChildren } from '@/lib/hooks/useData'
 import { useAgenda, type AgendaTask, type TaskCategory } from '@/lib/hooks/useAgenda'
@@ -861,7 +862,7 @@ export default function AgendaVisualPage() {
       </div>
 
       <div className="flex flex-col items-center gap-2 text-center">
-        <img src="/assets/dino-agenda-visual.png" alt="" width={138} height={161} className="object-contain" />
+        <img src="/assets/dino-agenda-visual.png" alt="" width={138} height={161} className="object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
         <p className="text-base font-bold text-text-primary">{lumiMessage}</p>
       </div>
 
@@ -887,6 +888,7 @@ export default function AgendaVisualPage() {
             width={40}
             height={48}
             className="object-contain drop-shadow-md"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
         </motion.div>
         <p className="text-xs font-bold text-text-secondary mt-2">
@@ -1025,6 +1027,21 @@ export default function AgendaVisualPage() {
           <p className="text-xs text-text-muted mt-1">Toca &quot;Añadir tarea&quot; para empezar</p>
         </div>
       )}
+
+      {/* Consejos útiles */}
+      <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+        <div className="flex gap-3">
+          <span className="text-2xl shrink-0">💡</span>
+          <div className="flex-1">
+            <h3 className="heading-card mb-1">Consejos útiles</h3>
+            <p className="text-meta leading-relaxed">
+              La agenda visual ayuda a estructurar la rutina diaria y reduce la ansiedad por lo desconocido.
+              Coloca las tareas en orden, usa temporizadores para marcar la duración, y celebra cada
+              completación con una recompensa. La consistencia genera confianza y autonomía.
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }

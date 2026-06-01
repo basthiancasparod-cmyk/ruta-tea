@@ -62,6 +62,7 @@ function PrimeroDespuesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sessions, setSessions] = useState<FirstThenSession[]>([])
   const [boardStats, setBoardStats] = useState<Record<string, number>>({})
+  const [saving, setSaving] = useState(false)
   const [showFullscreenHint, setShowFullscreenHint] = useState(false)
 
   const tickRef = useRef(0)
@@ -215,39 +216,53 @@ function PrimeroDespuesPage() {
   }) => {
     if (!child?.id) return
     setErrorMsg(null)
+    setSaving(true)
     try {
       const res = await fetch('/api/primero-despues', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ childId: child.id, ...data }),
       })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Error ${res.status}`)
+      }
       const result = await res.json()
       if (result.error) throw new Error(result.error)
       setBoards(prev => [result, ...prev])
       setActiveBoard(result)
       setPhase('selecting')
       setShowNewModal(false)
-    } catch {
-      setErrorMsg('Error al crear tablero')
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al crear tablero')
+    } finally {
+      setSaving(false)
     }
   }
 
   const updateBoard = async (boardId: string, data: Partial<FirstThenBoard>) => {
     if (!child?.id) return
     setErrorMsg(null)
+    setSaving(true)
     try {
       const res = await fetch('/api/primero-despues', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ boardId, childId: child.id, ...data }),
       })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Error ${res.status}`)
+      }
       const result = await res.json()
       if (result.error) throw new Error(result.error)
       setBoards(prev => prev.map(b => b.id === boardId ? result : b))
       if (activeBoard?.id === boardId) setActiveBoard(result)
       setShowEditModal(false)
-    } catch {
-      setErrorMsg('Error al guardar tablero')
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al guardar tablero')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -265,20 +280,30 @@ function PrimeroDespuesPage() {
       setConfirmDelete(null)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Error al eliminar tablero')
+      setConfirmDelete(null)
     }
   }
 
   const handleReorder = async (reordered: FirstThenBoard[]) => {
+    const prevBoards = boards
+    const prevFiltered = filteredBoards
     setFilteredBoards(reordered)
     const updated = reordered.map((b, i) => ({ ...b, sort_order: i }))
     const updatedMap = new Map(updated.map(b => [b.id, b]))
     setBoards(prev => prev.map(b => updatedMap.get(b.id) ?? b))
     if (activeBoard) setActiveBoard(updatedMap.get(activeBoard.id) ?? activeBoard)
-    await fetch('/api/primero-despues', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ childId: child?.id, reorder: true, boards: updated.map(b => ({ id: b.id, sort_order: b.sort_order })) }),
-    })
+    try {
+      const res = await fetch('/api/primero-despues', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ childId: child?.id, reorder: true, boards: updated.map(b => ({ id: b.id, sort_order: b.sort_order })) }),
+      })
+      if (!res.ok) throw new Error('Error al reordenar')
+    } catch {
+      setBoards(prevBoards)
+      setFilteredBoards(prevFiltered)
+      setErrorMsg('Error al reordenar tableros')
+    }
   }
 
   const toggleFullscreen = () => {
@@ -329,7 +354,6 @@ function PrimeroDespuesPage() {
   const recentBoards = [...boards].filter(b => b.last_used_at).sort((a, b) => new Date(b.last_used_at!).getTime() - new Date(a.last_used_at!).getTime()).slice(0, 5)
 
   const quickActions = [
-    { title: 'Tablero Rápido', desc: 'Usa el primer tablero ahora', icon: '🚀', gradient: 'from-green-100 to-emerald-50', iconBg: 'bg-green-100', action: () => { if (boards.length > 0) { selectBoard(boards[0]); setTimeout(startFirst, 300) } else { setShowNewModal(true) } } },
     { title: 'Mis Tableros', desc: 'Ver y gestionar tableros', icon: '📚', gradient: 'from-blue-100 to-cyan-50', iconBg: 'bg-blue-100', action: () => document.getElementById('pd-boards')?.scrollIntoView({ behavior: 'smooth' }) },
     { title: 'Crear Tablero', desc: 'Diseña un tablero nuevo', icon: '✨', gradient: 'from-purple-100 to-violet-50', iconBg: 'bg-purple-100', action: () => setShowNewModal(true) },
     { title: 'Plantillas', desc: 'Usa una plantilla rápida', icon: '📋', gradient: 'from-orange-100 to-amber-50', iconBg: 'bg-orange-100', action: () => setShowTemplatesModal(true) },
@@ -345,11 +369,18 @@ function PrimeroDespuesPage() {
   const toggleFavorite = async (boardId: string, current: boolean) => {
     setBoards(prev => prev.map(b => b.id === boardId ? { ...b, is_favorite: !current } : b))
     if (activeBoard?.id === boardId) setActiveBoard(prev => prev ? { ...prev, is_favorite: !current } : null)
-    await fetch('/api/primero-despues', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ boardId, childId: child?.id, is_favorite: !current }),
-    }).catch(() => {})
+    try {
+      const res = await fetch('/api/primero-despues', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ boardId, childId: child?.id, is_favorite: !current }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar favorito')
+    } catch {
+      setBoards(prev => prev.map(b => b.id === boardId ? { ...b, is_favorite: current } : b))
+      if (activeBoard?.id === boardId) setActiveBoard(prev => prev ? { ...prev, is_favorite: current } : null)
+      setErrorMsg('Error al actualizar favorito')
+    }
   }
 
   return (
@@ -410,7 +441,7 @@ function PrimeroDespuesPage() {
       {/* Quick Access */}
       <motion.div variants={itemVariants}>
         <h2 className="text-sm font-extrabold text-text-secondary mb-3 tracking-wide">ACCESO RÁPIDO</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {quickActions.map((action, i) => (
             <motion.div key={action.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
               <button onClick={action.action} className="w-full text-left">
@@ -650,13 +681,13 @@ function PrimeroDespuesPage() {
 
       {/* New board modal */}
       <AnimatePresence>
-        {showNewModal && <NewBoardModal onSave={createBoard} onClose={() => setShowNewModal(false)} />}
+        {showNewModal && <NewBoardModal saving={saving} onSave={createBoard} onClose={() => setShowNewModal(false)} />}
       </AnimatePresence>
 
       {/* Edit board modal */}
       <AnimatePresence>
         {showEditModal && activeBoard && (
-          <EditBoardModal board={activeBoard} onSave={(data) => updateBoard(activeBoard.id, data)}
+          <EditBoardModal board={activeBoard} saving={saving} onSave={(data) => updateBoard(activeBoard.id, data)}
             onDelete={() => setConfirmDelete(activeBoard.id)} onClose={() => setShowEditModal(false)} />
         )}
       </AnimatePresence>
@@ -685,7 +716,8 @@ function PrimeroDespuesPage() {
   )
 }
 
-function NewBoardModal({ onSave, onClose }: {
+function NewBoardModal({ saving, onSave, onClose }: {
+  saving: boolean
   onSave: (data: { title: string; first_label: string; first_emoji: string; first_minutes: number | null; then_label: string; then_emoji: string; then_minutes: number | null }) => void
   onClose: () => void
 }) {
@@ -817,8 +849,8 @@ function NewBoardModal({ onSave, onClose }: {
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={onClose}
                 className="flex-1 py-2.5 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-secondary transition-colors border border-border">Cancelar</button>
-              <button type="submit" disabled={!firstLabel.trim() || !thenLabel.trim()}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm">Crear</button>
+              <button type="submit" disabled={!firstLabel.trim() || !thenLabel.trim() || saving}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm">{saving ? 'Guardando...' : 'Crear'}</button>
             </div>
           </form>
         </div>
@@ -827,8 +859,8 @@ function NewBoardModal({ onSave, onClose }: {
   )
 }
 
-function EditBoardModal({ board, onSave, onDelete, onClose }: {
-  board: FirstThenBoard; onSave: (data: Partial<FirstThenBoard>) => void; onDelete: () => void; onClose: () => void
+function EditBoardModal({ board, saving, onSave, onDelete, onClose }: {
+  board: FirstThenBoard; saving: boolean; onSave: (data: Partial<FirstThenBoard>) => void; onDelete: () => void; onClose: () => void
 }) {
   const [title, setTitle] = useState(board.title)
   const [firstLabel, setFirstLabel] = useState(board.first_label)
@@ -965,8 +997,8 @@ function EditBoardModal({ board, onSave, onDelete, onClose }: {
               <div className="flex-1" />
               <button type="button" onClick={onClose}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-secondary transition-colors border border-border">Cancelar</button>
-              <button type="submit" disabled={!firstLabel.trim() || !thenLabel.trim()}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm">Guardar</button>
+              <button type="submit" disabled={!firstLabel.trim() || !thenLabel.trim() || saving}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm">{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </form>
         </div>

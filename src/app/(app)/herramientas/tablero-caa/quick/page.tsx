@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pictogram } from "@/components/ui/Pictogram"
+import { Pictogram, warmPictogramCache } from "@/components/ui/Pictogram"
 import { playSound, vibrate } from "@/lib/sounds"
 import { useChildren } from "@/lib/hooks/useData"
 import { useCAABoardMutations, useCAAUsageHistory } from "@/lib/hooks/useCAA"
@@ -179,7 +179,6 @@ export default function QuickBoardPage() {
       return saved ? JSON.parse(saved) : {}
     } catch { return {} }
   })
-  const scanBtnRef = useRef(false)
   const topbarRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -198,6 +197,12 @@ export default function QuickBoardPage() {
   useEffect(() => {
     initFromGrid(QUICK_CELLS, { ...boardSettings, collectMode: boardSettings.collectMode ?? ("separated" as CollectMode) })
   }, [initFromGrid])
+
+  // Pre-warm pictogram cache for all cell keywords
+  useEffect(() => {
+    const keywords = QUICK_CELLS.map(c => c.pictogram_keyword).filter(Boolean) as string[]
+    warmPictogramCache(keywords)
+  }, [])
 
   // ── Word Forms ──────────────────────────────────────────────
   const wf = useWordForms()
@@ -483,7 +488,7 @@ export default function QuickBoardPage() {
                   🟢 Detener
                 </button>
               ) : (
-                <button onClick={() => { setBoardSettings(s => ({ ...s, scanEnabled: true })); scanBtnRef.current = true }}
+                <button onClick={() => setBoardSettings(s => ({ ...s, scanEnabled: true }))}
                   className="text-sm font-bold border-2 border-border rounded-lg px-3 py-2 transition-all whitespace-nowrap min-h-[44px] shrink-0
                     hover:border-accent hover:text-accent">
                   🔘 Scan

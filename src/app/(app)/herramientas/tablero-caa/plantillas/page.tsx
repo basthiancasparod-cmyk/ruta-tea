@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Lumi } from '@/components/lumi/Lumi'
 import { useCAABoardMutations } from '@/lib/hooks/useCAA'
+import { useSupabase } from '@/components/layout/SupabaseProvider'
 import { useChildren } from '@/lib/hooks/useData'
 import type { CAABoard, CAACell, FitzgeraldKey } from '@/types/caa'
 import { FITZGERALD_COLORS } from '@/types/caa'
@@ -234,7 +235,8 @@ export default function PlantillasPage() {
   const router = useRouter()
   const { children } = useChildren()
   const childId = children[0]?.id
-  const { createBoard, createCell } = useCAABoardMutations()
+  const { supabase } = useSupabase()
+  const { createBoard } = useCAABoardMutations()
   const [creating, setCreating] = useState<string | null>(null)
 
   const handleUseTemplate = async (template: typeof TEMPLATES[0]) => {
@@ -267,26 +269,26 @@ export default function PlantillasPage() {
 
       const cells = TEMPLATE_CELLS[template.name]
       if (cells) {
-        await Promise.all(
-          cells.map(c => {
-            const fc = FITZGERALD_COLORS[c.fitzgerald_key]
-            return createCell({
-              id: crypto.randomUUID(),
-              board_id: newBoard.id,
-              position_row: c.position_row,
-              position_col: c.position_col,
-              label: c.label,
-              pictogram_keyword: c.label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(),
-              background_color: fc.bg,
-              border_color: fc.border,
-              text_color: fc.text,
-              fitzgerald_key: c.fitzgerald_key,
-              is_folder: false,
-              action_type: 'add_to_message',
-              order_index: (c.position_row - 1) * template.columns + (c.position_col - 1),
-            })
-          })
-        )
+        const batch = cells.map(c => {
+          const fc = FITZGERALD_COLORS[c.fitzgerald_key]
+          return {
+            id: crypto.randomUUID(),
+            board_id: newBoard.id,
+            position_row: c.position_row,
+            position_col: c.position_col,
+            label: c.label,
+            pictogram_keyword: c.label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(),
+            background_color: fc.bg,
+            border_color: fc.border,
+            text_color: fc.text,
+            fitzgerald_key: c.fitzgerald_key,
+            is_folder: false,
+            action_type: 'add_to_message',
+            order_index: (c.position_row - 1) * template.columns + (c.position_col - 1),
+          }
+        })
+        const { error: batchErr } = await supabase.from("caa_cells").insert(batch)
+        if (batchErr) throw new Error(`Error creando celdas: ${batchErr.message}`)
       }
 
       router.push(`/herramientas/tablero-caa/editor/${newBoard.id}`)

@@ -13,18 +13,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const childId = kids[0]?.id
   const { streak } = useStreak(childId)
   const [prevStreak, setPrevStreak] = useState(0)
+  const [hideChrome, setHideChrome] = useState(false)
 
   useEffect(() => {
     if (streak.current > 0) setPrevStreak(streak.current)
   }, [streak.current])
 
+  useEffect(() => {
+    const handler = (e: Event) => setHideChrome((e as CustomEvent).detail)
+    window.addEventListener("pd-chrome", handler)
+    return () => window.removeEventListener("pd-chrome", handler)
+  }, [])
+
   const isBoard =
     pathname.includes("/herramientas/tablero-caa/quick") ||
     pathname.includes("/herramientas/tablero-caa/tablero")
 
-  if (isBoard) {
+  if (isBoard || hideChrome) {
     return (
-      <main className="w-full h-screen overflow-hidden">
+      <main className="w-full h-screen overflow-hidden bg-surface">
         {children}
       </main>
     )

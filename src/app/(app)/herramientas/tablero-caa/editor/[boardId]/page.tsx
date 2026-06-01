@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Lumi } from "@/components/lumi/Lumi"
 import { CAABoardEditor } from "@/components/caa/CAABoardEditor"
+import { warmPictogramCache } from "@/components/ui/Pictogram"
 import { useCAABoard, useCAABoardMutations } from "@/lib/hooks/useCAA"
 import { useSupabase } from "@/components/layout/SupabaseProvider"
 import { useChildren } from "@/lib/hooks/useData"
@@ -16,6 +17,8 @@ function cellToDB(cell: Partial<CAACell>): Record<string, unknown> {
   const db: Record<string, unknown> = { ...rest }
   if (dontCollect !== undefined) db.dont_collect = dontCollect
   if (toggleInBar !== undefined) db.toggle_in_bar = toggleInBar
+  if (wordForms !== undefined && wordForms.length > 0) db.word_forms = wordForms
+  if (colorCategory) db.color_category = colorCategory
   return db
 }
 
@@ -47,35 +50,39 @@ export default function EditorPage({ params }: { params: Promise<{ boardId: stri
     if (board && !isNew) { setBoardData(board); setBoardCells(cells) }
   }, [board, cells, isNew])
 
+  // Pre-warm pictogram cache for all cell keywords
+  useEffect(() => {
+    if (boardCells.length === 0) return
+    const keywords = boardCells.map(c => c.pictogram_keyword).filter(Boolean) as string[]
+    if (keywords.length > 0) warmPictogramCache(keywords)
+  }, [boardCells])
+
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      if (isNew) {
-        // Board via API route (funciona con auth users.id)
-        const nb = await createBoard({ ...boardData, child_id: childId })
-        // Cells via client-side Supabase directo
-        for (const cell of boardCells) {
-          const { id, ...cellData } = cell
-          const { error: cErr } = await supabase
-            .from("caa_cells")
-            .insert({ ...cellToDB(cellData), board_id: nb.id })
-          if (cErr) console.error("Error guardando celda:", cErr.message, cErr.code, cErr.details, cErr.hint)
-        }
-        router.push(`/herramientas/tablero-caa/tablero/${nb.id}`)
-      } else {
-        // Board update via API route
-        await updateBoard(boardId, boardData)
-        // Reemplazar celdas via cliente Supabase
-        await supabase.from("caa_cells").delete().eq("board_id", boardId)
-        for (const cell of boardCells) {
-          const { id, ...cellData } = cell
-          const { error: cErr } = await supabase
-            .from("caa_cells")
-            .insert({ ...cellToDB(cellData), board_id: boardId })
-          if (cErr) console.error("Error guardando celda:", cErr.message, cErr.code, cErr.details, cErr.hint)
-        }
-        router.push(`/herramientas/tablero-caa/tablero/${boardId}`)
+      const targetBoardId = isNew ? (await createBoard({ ...boardData, child_id: childId })).id : boardId
+      if (!isNew) await updateBoard(boardId, boardData)
+
+      const cellsPayload = boardCells.map(cell => cellToDB(cell))
+
+      // Upsert: insert new, update existing — no delete window
+      const { error: upsertErr } = await supabase
+        .from("caa_cells")
+        .upsert(cellsPayload.map(c => ({ ...c, board_id: targetBoardId })), { onConflict: 'id' })
+      if (upsertErr) throw new Error(`Error guardando celdas: ${upsertErr.message}`)
+
+      // Delete cells removed by the user
+      const incomingIds = boardCells.map(c => c.id).filter(Boolean)
+      if (incomingIds.length > 0) {
+        const { error: delErr } = await supabase
+          .from("caa_cells")
+          .delete()
+          .eq("board_id", targetBoardId)
+          .not('id', 'in', `(${incomingIds.join(',')})`)
+        if (delErr) throw new Error(`Error limpiando celdas: ${delErr.message}`)
       }
+
+      router.push(`/herramientas/tablero-caa/tablero/${targetBoardId}`)
     } catch (e) {
       console.error(e)
       alert("Error al guardar el tablero")

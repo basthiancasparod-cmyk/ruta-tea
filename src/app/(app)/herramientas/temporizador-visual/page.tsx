@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 import { playSound } from '@/lib/sounds'
 
 const SVG_R = 130
@@ -167,7 +168,7 @@ export default function TemporizadorVisualPage() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  })
+  }, [status])
 
   const progress = totalSeconds > 0 ? remaining / totalSeconds : 0
   const offset = SVG_C * (1 - progress)
@@ -230,7 +231,7 @@ export default function TemporizadorVisualPage() {
             <motion.div key={status} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               className={`w-[134px] h-[134px] mb-1 transition-all duration-300 ${DINO_META[status].className}`}>
               <img src="/assets/dino-modulo-temporizador.png" alt="Dino" className="w-full h-full object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/assets/dino-temporizador.png' }} />
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
             </motion.div>
             {remaining > 0 && remaining <= 10 && (
               <div className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full mb-1 animate-pulse">
@@ -378,6 +379,21 @@ export default function TemporizadorVisualPage() {
           </div>
         </motion.div>
       )}
+
+      {/* Consejos útiles */}
+      <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+        <div className="flex gap-3">
+          <span className="text-2xl shrink-0">💡</span>
+          <div className="flex-1">
+            <h3 className="heading-card mb-1">Consejos útiles</h3>
+            <p className="text-meta leading-relaxed">
+              El temporizador visual ayuda a los niños a comprender la duración de las actividades.
+              Úsalo para marcar tiempos de trabajo, juego o rutinas. Los avisos sonoros a los 60, 30 y 10 segundos
+              preparan al niño para la transición. Celebrar el cumplimiento del tiempo refuerza la autonomía.
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }

@@ -194,6 +194,15 @@ export interface BehaviorLog {
   created_at: string
 }
 
+export interface FirstThenSession {
+  id: string
+  board_id: string
+  child_id: string
+  first_duration_seconds: number | null
+  then_duration_seconds: number | null
+  completed_at: string
+}
+
 export interface FirstThenBoard {
   id: string
   child_id: string
@@ -204,7 +213,9 @@ export interface FirstThenBoard {
   then_label: string
   then_emoji: string
   then_minutes: number | null
-  is_completed: boolean
+  sort_order: number
+  is_favorite: boolean
+  last_used_at: string | null
   created_at: string
   updated_at: string
 }

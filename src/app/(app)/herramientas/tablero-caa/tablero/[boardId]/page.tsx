@@ -4,7 +4,7 @@ import { use, useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/Button"
-import { Pictogram } from "@/components/ui/Pictogram"
+import { Pictogram, warmPictogramCache } from "@/components/ui/Pictogram"
 import { playSound, vibrate } from "@/lib/sounds"
 import { useCAABoard, useCAABoardMutations } from "@/lib/hooks/useCAA"
 import { useChildren } from "@/lib/hooks/useData"
@@ -213,6 +213,12 @@ export default function TableroPage({ params }: { params: Promise<{ boardId: str
   useEffect(() => {
     if (cells.length) initFromGrid(cells, board?.settings)
   }, [cells, board?.settings, initFromGrid])
+
+  // Pre-warm pictogram cache
+  useEffect(() => {
+    const keywords = cells.map(c => c.pictogram_keyword).filter(Boolean) as string[]
+    if (keywords.length) warmPictogramCache(keywords)
+  }, [cells])
 
   // ── Word Forms ──────────────────────────────────────────────
   const wf = useWordForms()

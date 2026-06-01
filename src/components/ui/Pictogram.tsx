@@ -164,24 +164,55 @@ const EMOJI_FB: Record<string, string> = {
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 const apiCache = new Map<string, number | null>()
+const LS_CACHE_KEY = "arasaac_ids_v1"
+
+function persistLocal(keyword: string, id: number | null) {
+  try {
+    const raw = localStorage.getItem(LS_CACHE_KEY)
+    const data = raw ? JSON.parse(raw) : {}
+    data[keyword] = id
+    localStorage.setItem(LS_CACHE_KEY, JSON.stringify(data))
+  } catch { /* unavailable or quota */ }
+}
 
 async function resolveId(keyword: string): Promise<number | null> {
   const k = keyword.toLowerCase().trim()
   if (VERIFIED_IDS[k] !== undefined) return VERIFIED_IDS[k]
   if (apiCache.has(k)) return apiCache.get(k)!
+  // Check localStorage before making API call
+  try {
+    const raw = localStorage.getItem(LS_CACHE_KEY)
+    if (raw) {
+      const data = JSON.parse(raw)
+      if (data[k] !== undefined) { apiCache.set(k, data[k]); return data[k] }
+    }
+  } catch { /* ignore */ }
   try {
     const res = await fetch(
       `https://api.arasaac.org/v1/pictograms/es/search/${encodeURIComponent(k)}`,
       { signal: AbortSignal.timeout(6000) }
     )
-    if (!res.ok) { apiCache.set(k, null); return null }
+    if (!res.ok) { apiCache.set(k, null); persistLocal(k, null); return null }
     const data = await res.json()
     const id = Array.isArray(data) && data.length > 0 ? (data[0]._id as number) : null
     apiCache.set(k, id)
+    persistLocal(k, id)
     return id
   } catch {
     apiCache.set(k, null)
+    persistLocal(k, null)
     return null
+  }
+}
+
+export async function warmPictogramCache(keywords: string[]): Promise<void> {
+  const unique = [...new Set(keywords.filter(Boolean).map(k => k.toLowerCase().trim()))]
+  const needsResolve = unique.filter(k => VERIFIED_IDS[k] === undefined && !apiCache.has(k))
+  if (needsResolve.length === 0) return
+  const limit = 6
+  for (let i = 0; i < needsResolve.length; i += limit) {
+    const batch = needsResolve.slice(i, i + limit)
+    await Promise.allSettled(batch.map(k => resolveId(k)))
   }
 }
 

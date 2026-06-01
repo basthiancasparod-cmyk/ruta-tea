@@ -50,7 +50,10 @@ export function useAgenda(childId: string | null): UseAgendaReturn {
   useEffect(() => {
     if (!childId) { setLoading(false); return }
     fetch(`/api/agenda?childId=${childId}`)
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(`Error ${r.status}`)
+        return r.json()
+      })
       .then(data => {
         if (data.error) throw new Error(data.error)
         setAgenda(data.agenda)
@@ -64,96 +67,165 @@ export function useAgenda(childId: string | null): UseAgendaReturn {
     const task = tasks.find(t => t.id === taskId)
     if (!task) return
     const newDone = !task.done
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: newDone } : t))
-    const res = await fetch('/api/agenda/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, done: newDone }),
-    })
-    if (!res.ok) console.error('toggleDone failed:', await res.text())
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.map(t => t.id === taskId ? { ...t, done: newDone } : t) })
+    try {
+      const res = await fetch('/api/agenda/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, done: newDone }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar tarea')
+    } catch (e) {
+      setTasks(prev)
+      console.error('toggleDone failed:', e)
+    }
   }, [tasks])
 
   const addTask = useCallback(async (newTask: Pick<AgendaTask, 'label' | 'keyword' | 'category'> & { timer_seconds?: number; reward?: string }) => {
     if (!agenda) return
     const order_index = tasks.length
-    const res = await fetch('/api/agenda/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agendaId: agenda.id, ...newTask, order_index }),
-    })
-    const data = await res.json()
-    if (!data.error) setTasks(prev => [...prev, data])
+    try {
+      const res = await fetch('/api/agenda/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agendaId: agenda.id, ...newTask, order_index }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Error ${res.status}`)
+      }
+      const data = await res.json()
+      setTasks(prev => [...prev, data])
+    } catch (e) {
+      console.error('addTask failed:', e)
+    }
   }, [agenda, tasks.length])
 
   const deleteTask = useCallback(async (taskId: string) => {
-    setTasks(prev => prev.filter(t => t.id !== taskId))
-    await fetch(`/api/agenda/tasks?taskId=${taskId}`, { method: 'DELETE' })
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.filter(t => t.id !== taskId) })
+    try {
+      const res = await fetch(`/api/agenda/tasks?taskId=${taskId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Error al eliminar tarea')
+    } catch (e) {
+      setTasks(prev)
+      console.error('deleteTask failed:', e)
+    }
   }, [])
 
   const reorderTasks = useCallback(async (newTasks: AgendaTask[]) => {
     const reindexed = newTasks.map((t, i) => ({ ...t, order_index: i }))
-    setTasks(reindexed)
-    await fetch('/api/agenda/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: reindexed.map(({ id, order_index }) => ({ id, order_index })) }),
-    })
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return reindexed })
+    try {
+      const res = await fetch('/api/agenda/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: reindexed.map(({ id, order_index }) => ({ id, order_index })) }),
+      })
+      if (!res.ok) throw new Error('Error al reordenar')
+    } catch (e) {
+      setTasks(prev)
+      console.error('reorderTasks failed:', e)
+    }
   }, [])
 
   const resetAll = useCallback(async () => {
     if (!agenda) return
-    setTasks(prev => prev.map(t => ({ ...t, done: false, done_at: null, timer_seconds: 0 })))
-    await fetch('/api/agenda/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agendaId: agenda.id }),
-    })
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.map(t => ({ ...t, done: false, done_at: null, timer_seconds: 0 })) })
+    try {
+      const res = await fetch('/api/agenda/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agendaId: agenda.id }),
+      })
+      if (!res.ok) throw new Error('Error al reiniciar')
+    } catch (e) {
+      setTasks(prev)
+      console.error('resetAll failed:', e)
+    }
   }, [agenda])
 
   const updateTimerDuration = useCallback(async (taskId: string, seconds: number) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, timer_seconds: seconds } : t))
-    await fetch('/api/agenda/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, timer_seconds: seconds }),
-    })
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.map(t => t.id === taskId ? { ...t, timer_seconds: seconds } : t) })
+    try {
+      const res = await fetch('/api/agenda/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, timer_seconds: seconds }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar tiempo')
+    } catch (e) {
+      setTasks(prev)
+      console.error('updateTimerDuration failed:', e)
+    }
   }, [])
 
   const updateReward = useCallback(async (taskId: string, reward: string) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, reward } : t))
-    const res = await fetch('/api/agenda/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, reward }),
-    })
-    if (!res.ok) console.error('updateReward failed:', await res.text())
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.map(t => t.id === taskId ? { ...t, reward } : t) })
+    try {
+      const res = await fetch('/api/agenda/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, reward }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar recompensa')
+    } catch (e) {
+      setTasks(prev)
+      console.error('updateReward failed:', e)
+    }
   }, [])
 
   const updateAudio = useCallback(async (taskId: string, audio_data: string | null) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, audio_data, use_tts: false } : t))
-    await fetch('/api/agenda/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, audio_data, use_tts: false }),
-    })
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.map(t => t.id === taskId ? { ...t, audio_data, use_tts: false } : t) })
+    try {
+      const res = await fetch('/api/agenda/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, audio_data, use_tts: false }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar audio')
+    } catch (e) {
+      setTasks(prev)
+      console.error('updateAudio failed:', e)
+    }
   }, [])
 
   const updateUseTts = useCallback(async (taskId: string, use_tts: boolean) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, use_tts, audio_data: null } : t))
-    await fetch('/api/agenda/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, use_tts, audio_data: null }),
-    })
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.map(t => t.id === taskId ? { ...t, use_tts, audio_data: null } : t) })
+    try {
+      const res = await fetch('/api/agenda/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, use_tts, audio_data: null }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar TTS')
+    } catch (e) {
+      setTasks(prev)
+      console.error('updateUseTts failed:', e)
+    }
   }, [])
 
   const updateAudioLabel = useCallback(async (taskId: string, label: string) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, audio_label: label } : t))
-    await fetch('/api/agenda/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, audio_label: label }),
-    })
+    let prev: AgendaTask[] = []
+    setTasks(current => { prev = current; return current.map(t => t.id === taskId ? { ...t, audio_label: label } : t) })
+    try {
+      const res = await fetch('/api/agenda/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, audio_label: label }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar etiqueta')
+    } catch (e) {
+      setTasks(prev)
+      console.error('updateAudioLabel failed:', e)
+    }
   }, [])
 
   return { agenda, tasks, loading, error, toggleDone, addTask, deleteTask, reorderTasks, resetAll, updateTimerDuration, updateReward, updateAudio, updateUseTts, updateAudioLabel }

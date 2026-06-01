@@ -43,7 +43,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "childId and title required" }, { status: 400 })
   }
 
-  const { data: child } = await supabase.from("children").select("id").eq("id", childId).eq("profile_id", user.id).maybeSingle()
+  const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).maybeSingle()
+  if (!profile) return NextResponse.json({ error: "Child not found or access denied" }, { status: 404 })
+  const { data: child } = await supabase.from("children").select("id").eq("id", childId).eq("profile_id", profile.id).maybeSingle()
   if (!child) return NextResponse.json({ error: "Child not found or access denied" }, { status: 404 })
 
   const { data, error } = await supabase

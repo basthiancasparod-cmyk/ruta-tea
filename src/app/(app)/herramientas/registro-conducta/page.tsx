@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useChildren } from '@/lib/hooks/useData'
 import { useSupabase } from '@/components/layout/SupabaseProvider'
 import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 import type { TokenSession, BehaviorLog, BehaviorType } from '@/types'
 
 function localDateStr(d?: Date) {
@@ -100,6 +101,7 @@ export default function RegistroConductaPage() {
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [editSaving, setEditSaving] = useState(false)
+  const [boardSaving, setBoardSaving] = useState(false)
   const editImageRef = useRef<HTMLInputElement>(null)
 
   const clientOffset = new Date().getTimezoneOffset()
@@ -112,6 +114,9 @@ export default function RegistroConductaPage() {
         fetch(`/api/registro-conducta/logs?childId=${childId}&date=${date}&offset=${clientOffset}`),
         fetch(`/api/registro-conducta/tokens?childId=${childId}&date=${date}`),
       ])
+      if (!logsRes.ok || !tokensRes.ok) {
+        throw new Error('Error al cargar datos')
+      }
       const logsData = await logsRes.json()
       const tokensData = await tokensRes.json()
       setLogs(logsData.logs ?? [])
@@ -127,6 +132,7 @@ export default function RegistroConductaPage() {
     if (!childId) return
     try {
       const res = await fetch(`/api/registro-conducta/logs?childId=${childId}&month=${year}-${String(month + 1).padStart(2, '0')}&offset=${clientOffset}`)
+      if (!res.ok) { console.warn('fetchActiveDates: response not ok'); return }
       const data = await res.json()
       setActiveDates(data.dates ?? [])
     } catch (e) { console.warn('fetchActiveDates', e) }
@@ -148,25 +154,40 @@ export default function RegistroConductaPage() {
     if (!sess) return
     const earned = Math.min(sess.earned_tokens + 1, sess.total_tokens)
     const completed = earned >= sess.total_tokens
-    const res = await fetch('/api/registro-conducta/tokens', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, earned_tokens: earned, is_completed: completed }),
-    })
-    if (res.ok) setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, earned_tokens: earned, is_completed: completed } : s))
+    try {
+      const res = await fetch('/api/registro-conducta/tokens', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, earned_tokens: earned, is_completed: completed }),
+      })
+      if (!res.ok) throw new Error('Error al añadir token')
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, earned_tokens: earned, is_completed: completed } : s))
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al añadir token')
+    }
   }
 
   const handleCreateBoard = async () => {
     if (!childId || sessions.length >= 3) return
-    const res = await fetch('/api/registro-conducta/tokens', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ childId, reward_text: rewardText || 'Mi recompensa', reward_emoji: rewardEmoji, total_tokens: tokenCount, session_date: selectedDate }),
-    })
-    if (res.ok) {
+    setBoardSaving(true)
+    setErrorMsg(null)
+    try {
+      const res = await fetch('/api/registro-conducta/tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ childId, reward_text: rewardText || 'Mi recompensa', reward_emoji: rewardEmoji, total_tokens: tokenCount, session_date: selectedDate }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Error ${res.status}`)
+      }
       const data = await res.json()
       setSessions(prev => [data, ...prev])
       setShowNewBoard(false)
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al crear tablero')
+    } finally {
+      setBoardSaving(false)
     }
   }
 
@@ -174,24 +195,41 @@ export default function RegistroConductaPage() {
     if (!editingSessionId) return
     const sess = sessions.find(s => s.id === editingSessionId)
     if (!sess) return
+    setBoardSaving(true)
+    setErrorMsg(null)
     const clamped = Math.min(sess.earned_tokens, editBoardTokens)
     const completed = clamped >= editBoardTokens
-    const res = await fetch('/api/registro-conducta/tokens', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: editingSessionId, reward_text: editBoardReward, reward_emoji: editBoardEmoji, total_tokens: editBoardTokens, earned_tokens: clamped, is_completed: completed }),
-    })
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/registro-conducta/tokens', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: editingSessionId, reward_text: editBoardReward, reward_emoji: editBoardEmoji, total_tokens: editBoardTokens, earned_tokens: clamped, is_completed: completed }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Error ${res.status}`)
+      }
       setSessions(prev => prev.map(s => s.id === editingSessionId ? { ...s, reward_text: editBoardReward, reward_emoji: editBoardEmoji, total_tokens: editBoardTokens, earned_tokens: clamped, is_completed: completed } : s))
       setEditingSessionId(null)
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al guardar tablero')
+    } finally {
+      setBoardSaving(false)
     }
   }
 
   const handleDeleteSession = async () => {
     if (!deleteSessionId) return
-    await fetch(`/api/registro-conducta/tokens?sessionId=${deleteSessionId}`, { method: 'DELETE' })
-    setSessions(prev => prev.filter(s => s.id !== deleteSessionId))
-    setDeleteSessionId(null)
+    const id = deleteSessionId
+    try {
+      const res = await fetch(`/api/registro-conducta/tokens?sessionId=${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Error al eliminar el tablero')
+      setSessions(prev => prev.filter(s => s.id !== id))
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al eliminar el tablero')
+    } finally {
+      setDeleteSessionId(null)
+    }
   }
 
   const uploadImage = async (file: File, folder: string): Promise<string | null> => {
@@ -275,9 +313,15 @@ export default function RegistroConductaPage() {
   }
 
   const handleDeleteLog = async (logId: string) => {
-    await fetch(`/api/registro-conducta/logs?logId=${logId}`, { method: 'DELETE' })
-    setLogs(prev => prev.filter(l => l.id !== logId))
-    setConfirmDeleteLog(null)
+    try {
+      const res = await fetch(`/api/registro-conducta/logs?logId=${logId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Error al eliminar el registro')
+      setLogs(prev => prev.filter(l => l.id !== logId))
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al eliminar el registro')
+    } finally {
+      setConfirmDeleteLog(null)
+    }
   }
 
   const openEditLog = (log: BehaviorLog) => {
@@ -422,9 +466,9 @@ export default function RegistroConductaPage() {
                     </div>
                     <div className="flex gap-0.5">
                       <button onClick={() => { setEditBoardReward(sess.reward_text); setEditBoardEmoji(sess.reward_emoji); setEditBoardTokens(sess.total_tokens); setEditingSessionId(sess.id) }}
-                        className="w-6 h-6 rounded-lg text-[10px] hover:bg-surface-secondary flex items-center justify-center text-text-muted">✏️</button>
+                        className="w-9 h-9 rounded-lg text-sm hover:bg-surface-secondary flex items-center justify-center text-text-muted" title="Editar">✏️</button>
                       <button onClick={() => setDeleteSessionId(sess.id)}
-                        className="w-6 h-6 rounded-lg text-[10px] hover:bg-red-50 flex items-center justify-center text-text-muted hover:text-red-500">🗑️</button>
+                        className="w-9 h-9 rounded-lg text-sm hover:bg-red-50 flex items-center justify-center text-text-muted hover:text-red-500" title="Eliminar">🗑️</button>
                     </div>
                   </div>
 
@@ -581,22 +625,22 @@ export default function RegistroConductaPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-text-primary">{log.description}</p>
-                    {log.intensity && (
+                    {log.intensity != null && (
                       <p className="text-[10px] font-bold text-text-muted">
                         Intensidad: {'●'.repeat(log.intensity)}{'○'.repeat(5 - log.intensity)}
                       </p>
                     )}
                     {log.image_url && (
-                      <img src={log.image_url} alt="foto" className="mt-1.5 h-16 rounded-lg object-cover border border-border" />
+                      <img src={log.image_url} alt="foto" className="mt-1.5 h-16 rounded-lg object-cover border border-border" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                     )}
                   </div>
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
                     <button onClick={() => setViewingLog(log)}
-                      className="w-7 h-7 rounded-lg text-xs hover:bg-surface-secondary flex items-center justify-center text-text-muted">👁️</button>
+                      className="w-9 h-9 rounded-lg text-sm hover:bg-surface-secondary flex items-center justify-center text-text-muted" title="Ver">👁️</button>
                     <button onClick={() => openEditLog(log)}
-                      className="w-7 h-7 rounded-lg text-xs hover:bg-surface-secondary flex items-center justify-center text-text-muted">✏️</button>
+                      className="w-9 h-9 rounded-lg text-sm hover:bg-surface-secondary flex items-center justify-center text-text-muted" title="Editar">✏️</button>
                     <button onClick={() => setConfirmDeleteLog(log.id)}
-                      className="w-7 h-7 rounded-lg text-xs hover:bg-red-50 flex items-center justify-center text-text-muted hover:text-red-500">🗑️</button>
+                      className="w-9 h-9 rounded-lg text-sm hover:bg-red-50 flex items-center justify-center text-text-muted hover:text-red-500" title="Eliminar">🗑️</button>
                   </div>
                 </motion.div>
               ))}
@@ -645,8 +689,8 @@ export default function RegistroConductaPage() {
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => { setRewardText(''); setRewardEmoji('🎁'); setTokenCount(10); setShowNewBoard(false) }}
                     className="flex-1 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-secondary transition-colors border border-border">Cancelar</button>
-                  <button onClick={handleCreateBoard}
-                    className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm">Crear</button>
+                  <button onClick={handleCreateBoard} disabled={boardSaving}
+                    className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm">{boardSaving ? 'Creando...' : 'Crear'}</button>
                 </div>
               </div>
             </motion.div>
@@ -694,8 +738,8 @@ export default function RegistroConductaPage() {
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => setEditingSessionId(null)}
                     className="flex-1 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-secondary transition-colors border border-border">Cancelar</button>
-                  <button onClick={handleUpdateBoard}
-                    className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm">Guardar</button>
+                  <button onClick={handleUpdateBoard} disabled={boardSaving}
+                    className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm">{boardSaving ? 'Guardando...' : 'Guardar'}</button>
                 </div>
               </div>
             </motion.div>
@@ -809,7 +853,7 @@ export default function RegistroConductaPage() {
                 {viewingLog.image_url && (
                   <div>
                     <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Foto</p>
-                    <img src={viewingLog.image_url} alt="foto" className="w-full max-h-48 rounded-xl object-cover border border-border" />
+                    <img src={viewingLog.image_url} alt="foto" className="w-full max-h-48 rounded-xl object-cover border border-border" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   </div>
                 )}
                 <div>
@@ -879,6 +923,21 @@ export default function RegistroConductaPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Consejos útiles */}
+      <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+        <div className="flex gap-3">
+          <span className="text-2xl shrink-0">💡</span>
+          <div className="flex-1">
+            <h3 className="heading-card mb-1">Consejos útiles</h3>
+            <p className="text-meta leading-relaxed">
+              El registro de conducta ayuda a identificar patrones y desencadenantes. Registra tanto conductas positivas como
+              desafiantes para obtener una visión completa. Usa el sistema de fichas para motivar y celebra cada logro,
+              por pequeño que sea. La consistencia es clave para el progreso.
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }

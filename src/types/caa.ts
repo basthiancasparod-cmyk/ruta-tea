@@ -224,7 +224,7 @@ export function getDefaultActions(cell: Partial<CAACell>): CAAAction[] {
   if (cell.actions && cell.actions.length > 0) return cell.actions
   // Backward compat: convert action_type to actions
   const at = cell.action_type
-  if (!at || at === "add_to_message") return [{ id: crypto.randomUUID?.() ?? "", modelName: "GridActionCollectElement" }]
+  if (!at || at === "add_to_message") return [{ id: crypto.randomUUID?.() ?? "", modelName: "GridActionSpeak", speakLanguage: "es-ES" }]
   if (at === "speak_instant") return [{ id: crypto.randomUUID?.() ?? "", modelName: "GridActionSpeak", speakLanguage: "es-ES" }]
   if (at === "navigate") return [{ id: crypto.randomUUID?.() ?? "", modelName: "GridActionNavigate", navType: "TO_GRID", toGridId: cell.navigation_board_id }]
   if (at === "clear") return [{ id: crypto.randomUUID?.() ?? "", modelName: "GridActionCollectElement", action: "COLLECT_ACTION_CLEAR" }]
