@@ -10,6 +10,7 @@ import {
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 import { useChildren } from '@/lib/hooks/useData'
 import { useCalendario } from '@/lib/hooks/useCalendario'
 import type { CalendarEvent, EventCategory, RepeatConfig, RepeatType } from '@/types'
@@ -218,16 +219,7 @@ function CalendarPage() {
         )}
       </div>
 
-      {!loading && !error && events.length === 0 ? (
-        <div className="bg-surface rounded-2xl shadow-md border border-border p-8 text-center">
-          <div className="text-5xl mb-3">🦕</div>
-          <p className="heading-section mb-2">¡Bienvenido al calendario!</p>
-          <p className="text-body mb-4">Aquí podrás organizar todas tus actividades, citas y rutinas.</p>
-          <Button variant="primary" size="md" onClick={() => openCreateEvent(new Date())}>
-            + Crear primer evento
-          </Button>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="bg-surface rounded-2xl shadow-md border border-border p-4">
           <div className="animate-pulse space-y-3">
             <div className="flex justify-center gap-2 mb-4">
@@ -255,6 +247,11 @@ function CalendarPage() {
         </div>
       ) : (
       <div className="bg-surface rounded-2xl shadow-md overflow-hidden border border-border">
+        {events.length === 0 && (
+          <div className="bg-brand-bg/50 border-b border-brand/20 px-4 py-3 text-center">
+            <p className="text-xs font-bold text-brand">🦕 No hay eventos este mes — toca un día para agregar uno</p>
+          </div>
+        )}
         <div className="bg-gradient-to-r from-brand/10 to-brand-bg/50 p-4 border-b border-border">
           {/* Fila principal: navegación entre meses */}
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -588,6 +585,20 @@ function CalendarPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Consejos útiles */}
+      <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+        <div className="flex gap-3">
+          <span className="text-2xl">💡</span>
+          <div className="flex-1">
+            <h3 className="heading-card mb-1">Consejos útiles</h3>
+            <p className="text-meta leading-relaxed">
+              Usa el calendario para organizar citas, terapias y rutinas. Puedes arrastrar eventos entre días para
+              reprogramarlos y usar los filtros de categoría para ver solo lo que te interesa.
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }
