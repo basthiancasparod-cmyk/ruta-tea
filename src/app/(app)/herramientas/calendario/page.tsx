@@ -135,8 +135,9 @@ function CalendarPage() {
   }
 
   const handleDrop = async (targetDate: string) => {
+    if (!child?.id) { setErrorMsg('No hay un niño seleccionado'); return }
     if (dragEventId && dragOverDate) {
-      const err = await moveEvent(dragEventId, child!.id, targetDate)
+      const err = await moveEvent(dragEventId, child.id, targetDate)
       if (err) setErrorMsg(err)
     }
     setDragEventId(null)
@@ -148,9 +149,10 @@ function CalendarPage() {
     all_day: boolean; event_time: string | null;
     category: EventCategory; repeat_type: RepeatType; repeat_config?: RepeatConfig | null
   }): Promise<boolean> => {
+    if (!child?.id) { setErrorMsg('No hay un niño seleccionado'); return false }
     setErrorMsg(null)
     if (editingEvent) {
-      const err = await updateEvent(editingEvent.id, child!.id, {
+      const err = await updateEvent(editingEvent.id, child.id, {
         ...data,
         event_date: modalDate,
         event_time: data.event_time || null,
@@ -160,7 +162,7 @@ function CalendarPage() {
       if (err) { setErrorMsg(err); return false }
     } else {
       const id = await addEvent({
-        childId: child!.id,
+        childId: child.id,
         title: data.title,
         description: data.description,
         all_day: data.all_day,
@@ -178,12 +180,11 @@ function CalendarPage() {
   }
 
   const handleDeleteEvent = async () => {
-    if (editingEvent) {
-      setErrorMsg(null)
-      const err = await deleteEvent(editingEvent.id, child!.id)
-      if (err) { setErrorMsg(err); return }
-      setShowEventModal(false)
-    }
+    if (!child?.id || !editingEvent) return
+    setErrorMsg(null)
+    const err = await deleteEvent(editingEvent.id, child.id)
+    if (err) { setErrorMsg(err); return }
+    setShowEventModal(false)
   }
 
   return (
@@ -208,7 +209,7 @@ function CalendarPage() {
 
       <div className="flex flex-col items-center gap-2">
         <img src="/assets/dino-modulo-calendario.png" alt="Dino calendario" width={138} height={161} className="object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).src = '/assets/dino-temporizador.png' }} />
+          onError={(e) => { const el = e.target as HTMLImageElement; if (!el.src.includes('dino-temporizador')) el.src = '/assets/dino-temporizador.png' }} />
         <p className="text-base font-bold text-text-primary text-center">¿Qué hacemos hoy?</p>
         {!loading && nextEvent && (
           <p className="text-xs font-bold text-text-muted bg-brand-bg/50 px-3 py-1 rounded-full">
