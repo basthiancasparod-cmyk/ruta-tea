@@ -160,7 +160,7 @@ function CalendarPage() {
       if (err) { setErrorMsg(err); return }
     } else {
       const id = await addEvent({
-        child_id: child!.id,
+        childId: child!.id,
         title: data.title,
         description: data.description,
         all_day: data.all_day,
