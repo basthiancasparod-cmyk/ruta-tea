@@ -162,7 +162,7 @@ function CalendarPage() {
       if (err) { setErrorMsg(err); return false }
     } else {
       const id = await addEvent({
-        childId: child.id,
+        child_id: child.id,
         title: data.title,
         description: data.description,
         all_day: data.all_day,
