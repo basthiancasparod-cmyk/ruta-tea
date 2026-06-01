@@ -147,7 +147,7 @@ function CalendarPage() {
     title: string; description: string;
     all_day: boolean; event_time: string | null;
     category: EventCategory; repeat_type: RepeatType; repeat_config?: RepeatConfig | null
-  }) => {
+  }): Promise<boolean> => {
     setErrorMsg(null)
     if (editingEvent) {
       const err = await updateEvent(editingEvent.id, child!.id, {
@@ -157,7 +157,7 @@ function CalendarPage() {
         end_time: null,
         repeat_config: data.repeat_config ?? null,
       })
-      if (err) { setErrorMsg(err); return }
+      if (err) { setErrorMsg(err); return false }
     } else {
       const id = await addEvent({
         childId: child!.id,
@@ -171,9 +171,10 @@ function CalendarPage() {
         category: data.category,
         repeat_config: data.repeat_config ?? null,
       })
-      if (!id) { setErrorMsg('Error al crear el evento'); return }
+      if (!id) { setErrorMsg('Error al crear el evento'); return false }
     }
     setShowEventModal(false)
+    return true
   }
 
   const handleDeleteEvent = async () => {
@@ -378,7 +379,7 @@ function CalendarPage() {
             <div ref={gridRef} className="grid grid-cols-7 gap-px bg-border/30 rounded-xl overflow-hidden">
               {days.map((day) => {
                 const dateStr = format(day, 'yyyy-MM-dd')
-                const dayEvents = events.filter(e => e.event_date === dateStr)
+                const dayEvents = filteredEvents.filter(e => e.event_date === dateStr)
                 const isCurrentMonth = isSameMonth(day, currentDate)
                 const isTodayDate = isToday(day)
                 const isSelected = isSameDay(day, selectedDate)
@@ -454,13 +455,13 @@ function CalendarPage() {
                     </div>
                     {weekDays.map(day => {
                       const dateStr = format(day, 'yyyy-MM-dd')
-                      const cellEvents = events.filter(e =>
+                      const cellEvents = filteredEvents.filter(e =>
                         e.event_date === dateStr &&
                         !e.all_day &&
                         e.event_time &&
                         getHours(parseISO(`2000-01-01T${e.event_time}`)) === hour
                       )
-                      const allDay = events.filter(e => e.event_date === dateStr && e.all_day)
+                      const allDay = filteredEvents.filter(e => e.event_date === dateStr && e.all_day)
 
                       const isCellDragOver = dragOverDate === dateStr
                       return (
@@ -509,6 +510,7 @@ function CalendarPage() {
       <AnimatePresence>
         {showEventModal && (
           <EventModal
+            key={editingEvent?.id ?? 'new'}
             event={editingEvent}
             date={modalDate}
             onSave={handleSaveEvent}
@@ -610,7 +612,7 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
       title: string; description: string;
       all_day: boolean; event_time: string | null;
       category: EventCategory; repeat_type: RepeatType; repeat_config?: RepeatConfig | null
-    }) => void
+    }) => Promise<boolean>
   onDelete?: () => void
   onClose: () => void
 }) {
@@ -643,11 +645,11 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
     setRepeatWeekDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || saving) return
     setSaving(true)
-    onSave({
+    const ok = await onSave({
       title: title.trim(),
       description: description.trim(),
       all_day: allDay,
@@ -658,6 +660,7 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
         ? { days: repeatWeekDays, interval: repeatType === 'biweekly' ? 2 : 1 }
         : null,
     })
+    if (!ok) setSaving(false)
   }
 
   return (
