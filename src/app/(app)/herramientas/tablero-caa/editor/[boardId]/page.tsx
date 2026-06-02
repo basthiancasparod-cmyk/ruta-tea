@@ -14,15 +14,22 @@ import type { CAABoard, CAACell, GridSize } from "@/types/caa"
 
 function cellToDB(cell: Partial<CAACell>): Record<string, unknown> {
   const { colorCategory, dontCollect, toggleInBar, gridElementType, wordForms, created_at, ...rest } = cell
-  const db: Record<string, unknown> = { ...rest }
+  const db: Record<string, unknown> = {
+    ...rest,
+    pronunciation: (rest as any).pronunciation ?? {},
+    actions: (rest as any).actions ?? [],
+    hidden: (rest as any).hidden ?? false,
+    is_folder: (rest as any).is_folder ?? false,
+    label: (rest as any).label ?? '',
+    background_color: (rest as any).background_color ?? '#f1f5f9',
+    border_color: (rest as any).border_color ?? '#94a3b8',
+    text_color: (rest as any).text_color ?? '#1e293b',
+    order_index: (rest as any).order_index ?? 0,
+  }
   if (dontCollect !== undefined) db.dont_collect = dontCollect
   if (toggleInBar !== undefined) db.toggle_in_bar = toggleInBar
   if (wordForms !== undefined && wordForms.length > 0) db.word_forms = wordForms
   if (colorCategory) db.color_category = colorCategory
-  // Remove null values to avoid NOT NULL constraint violations
-  for (const key of Object.keys(db)) {
-    if (db[key] == null) delete db[key]
-  }
   return db
 }
 
