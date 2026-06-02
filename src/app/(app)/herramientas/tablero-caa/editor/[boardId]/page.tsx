@@ -68,21 +68,24 @@ export default function EditorPage({ params }: { params: Promise<{ boardId: stri
       if (!isNew) await updateBoard(boardId, boardData)
 
       const cellsPayload = boardCells.map(cell => cellToDB(cell))
+      const incomingIds = boardCells.map(c => c.id).filter(Boolean) as string[]
 
-      // Upsert: insert new, update existing — no delete window
+      // 1. Upsert: insert new, update existing — no delete window
       const { error: upsertErr } = await supabase
         .from("caa_cells")
         .upsert(cellsPayload.map(c => ({ ...c, board_id: targetBoardId })), { onConflict: 'id' })
       if (upsertErr) throw new Error(`Error guardando celdas: ${upsertErr.message}`)
 
-      // Delete cells removed by the user
-      const incomingIds = boardCells.map(c => c.id).filter(Boolean)
-      if (incomingIds.length > 0) {
-        const { error: delErr } = await supabase
-          .from("caa_cells")
-          .delete()
-          .eq("board_id", targetBoardId)
-          .not('id', 'in', `(${incomingIds.join(',')})`)
+      // 2. Delete cells removed by the user — query existing IDs first, then delete diff
+      const { data: existing } = await supabase
+        .from("caa_cells")
+        .select('id')
+        .eq("board_id", targetBoardId)
+      const existingIds = new Set((existing ?? []).map(r => r.id))
+      const incomingSet = new Set(incomingIds)
+      const toDelete = [...existingIds].filter(id => !incomingSet.has(id))
+      if (toDelete.length > 0) {
+        const { error: delErr } = await supabase.from("caa_cells").delete().in('id', toDelete)
         if (delErr) throw new Error(`Error limpiando celdas: ${delErr.message}`)
       }
 
