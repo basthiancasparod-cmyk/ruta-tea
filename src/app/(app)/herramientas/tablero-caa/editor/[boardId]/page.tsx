@@ -13,12 +13,13 @@ import { useChildren } from "@/lib/hooks/useData"
 import type { CAABoard, CAACell, GridSize } from "@/types/caa"
 
 function cellToDB(cell: Partial<CAACell>): Record<string, unknown> {
-  const { colorCategory, dontCollect, toggleInBar, gridElementType, wordForms, created_at, ...rest } = cell
+  const { colorCategory, dontCollect, toggleInBar, gridElementType, wordForms, created_at, pronunciation, ...rest } = cell
   const db: Record<string, unknown> = { ...rest }
   if (dontCollect !== undefined) db.dont_collect = dontCollect
   if (toggleInBar !== undefined) db.toggle_in_bar = toggleInBar
   if (wordForms !== undefined && wordForms.length > 0) db.word_forms = wordForms
   if (colorCategory) db.color_category = colorCategory
+  if (pronunciation != null) db.pronunciation = pronunciation
   return db
 }
 
