@@ -401,7 +401,7 @@ export default function HistoriasSocialesPage() {
         {showConfetti && <ConfettiBurst />}
         <div className="flex flex-col items-center gap-6 py-8 text-center">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }}>
-            <img src="/assets/dino-historias.png" alt="" width={130} height={150} className="object-contain"
+            <img src="/assets/dino-historias-sociales.png" alt="" width={130} height={150} className="object-contain"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -424,7 +424,7 @@ export default function HistoriasSocialesPage() {
   return (
     <div className="flex flex-col gap-6 pb-8">
       <div className="flex items-center gap-3">
-        <img src="/assets/dino-historias.png" alt="" width={80} height={92} className="object-contain shrink-0"
+        <img src="/assets/dino-historias-sociales.png" alt="" width={80} height={92} className="object-contain shrink-0"
           onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
         <div className="flex-1">
           <h1 className="heading-page">Historias Sociales</h1>
