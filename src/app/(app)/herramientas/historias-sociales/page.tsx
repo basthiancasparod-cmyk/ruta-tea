@@ -422,10 +422,9 @@ export default function HistoriasSocialesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-8">
+    <div className="flex flex-col gap-4 pb-8">
       <div className="flex items-center gap-3">
-        <img src="/assets/dino-historias-sociales.png" alt="" width={80} height={92} className="object-contain shrink-0"
-          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
         <div className="flex-1">
           <h1 className="heading-page">Historias Sociales</h1>
           <p className="text-body">Aprende situaciones nuevas paso a paso con pictogramas</p>
@@ -435,6 +434,14 @@ export default function HistoriasSocialesPage() {
           title={soundEnabled ? 'Silenciar' : 'Activar sonido'}
           aria-label={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}
         >{soundEnabled ? '🔊' : '🔇'}</button>
+      </div>
+
+      <div className="flex flex-col items-center gap-2 text-center">
+        <img src="/assets/dino-historias-sociales.png" alt="" width={138} height={161} className="object-contain"
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        <p className="text-base font-bold text-text-primary">
+          {completedCount > 0 ? '¡Sigue aprendiendo! Elige una historia' : 'Elige una historia para aprender'}
+        </p>
       </div>
 
       {completedCount > 0 && (
