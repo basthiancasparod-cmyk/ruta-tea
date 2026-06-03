@@ -4,15 +4,13 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Lumi } from '@/components/lumi/Lumi'
-import { warmPictogramCache } from '@/components/ui/Pictogram'
 import { playSound } from '@/lib/sounds'
 
 type Emotion = 'happy' | 'sad' | 'angry' | 'scared' | 'tired' | 'nervous'
 type EnergyLevel = 'high' | 'medium' | 'low'
 type BreathPattern = 'box' | 'relaxing' | 'sigh' | 'extended'
 type SoundType = 'rain' | 'waves' | 'forest' | 'brown-noise' | 'white-noise'
-type Step = 'check-in' | 'home' | 'home-emergency' | 'breathing' | 'grounding' | 'bubbles' | 'sounds' | 'emergency-calm' | 'check-out' | 'history'
+type Step = 'check-in' | 'home' | 'breathing' | 'grounding' | 'bubbles' | 'sounds' | 'emergency-calm' | 'check-out' | 'history'
 type CalmActivity = 'breathing' | 'grounding' | 'bubbles' | 'sounds'
 
 interface CalmSession {
@@ -85,6 +83,17 @@ const PETAL_COLORS = ['#a78bfa', '#34d399', '#f472b6', '#60a5fa']
 
 function getEmotion(emotion: string | null): EmotionData | undefined { return EMOTIONS.find(e => e.id === emotion) }
 
+function DinoCalma({ message, size = 'md' }: { message?: string; size?: 'sm' | 'md' | 'lg' }) {
+  const px = { sm: 80, md: 120, lg: 160 }[size]
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <img src="/assets/dino-ricon-calma.png" alt="" width={px} height={px} className="object-contain"
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+      {message && <p className="text-sm font-bold text-text-primary text-center">{message}</p>}
+    </div>
+  )
+}
+
 function IntensitySlider({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   const clamped = Math.max(1, Math.min(5, value))
   return (
@@ -93,6 +102,7 @@ function IntensitySlider({ value, onChange, disabled }: { value: number; onChang
       <input type="range" min={1} max={5} step={1} value={clamped} disabled={disabled}
         onChange={e => onChange(Number(e.target.value))}
         className="flex-1 accent-purple-500 h-2 rounded-full appearance-none bg-purple-200 cursor-pointer disabled:opacity-40"
+        aria-label="Intensidad de la emoción"
       />
       <span className="text-xs text-text-muted w-12">Mucho</span>
     </div>
@@ -109,17 +119,17 @@ function EmotionGrid({ emotions, onSelect, selected, intensity, onIntensityChang
         {emotions.map(emotion => {
           const isSelected = selected === emotion.id
           return (
-            <motion.button key={emotion.id} whileTap={{ scale: 0.93 }}
+            <motion.button key={emotion.id} whileTap={{ scale: 0.95 }}
               onClick={() => onSelect?.(emotion.id)}
               disabled={disabled}
-              className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 isSelected
                   ? 'bg-purple-100 border-purple-400 ring-2 ring-purple-300'
                   : `${emotion.bg} ${emotion.border} bg-white hover:border-purple-300`
               }`}
             >
-              <span className="text-3xl">{emotion.emoji}</span>
-              <span className="text-xs font-bold text-text-primary">{emotion.label}</span>
+              <span className="text-5xl">{emotion.emoji}</span>
+              <span className="text-base font-bold text-text-primary">{emotion.label}</span>
             </motion.button>
           )
         })}
@@ -246,7 +256,7 @@ function BreathCircle({ config, onDone }: { config: BreathConfig; onDone: () => 
   )
 }
 
-function GroundingExercise({ onDone }: { onDone: () => void }) {
+function GroundingExercise({ onDone, soundEnabled }: { onDone: () => void; soundEnabled?: boolean }) {
   const steps = [
     { sense: 'vista', icon: '👁️', label: '5 cosas que ves', count: 5, hint: 'Mira a tu alrededor...' },
     { sense: 'tacto', icon: '✋', label: '4 cosas que tocas', count: 4, hint: 'Siente las texturas...' },
@@ -265,21 +275,21 @@ function GroundingExercise({ onDone }: { onDone: () => void }) {
     if (next >= current.count) {
       if (stepIdx >= steps.length - 1) {
         setCompleted(true)
-        playSound('celebration')
+        if (soundEnabled) playSound('celebration')
       } else {
         setStepIdx(s => s + 1)
         setTapped(0)
-        playSound('click')
+        if (soundEnabled) playSound('click')
       }
     } else {
       setTapped(next)
-      playSound('click')
+      if (soundEnabled) playSound('click')
     }
   }
 
   return (
     <div className="flex flex-col items-center gap-6 py-2">
-      <Lumi mood="idle" message="Conecta con tus sentidos" size="sm" />
+      <DinoCalma message="Conecta con tus sentidos" size="sm" />
 
       <div className="w-full max-w-sm">
         <div className="flex gap-1 mb-4 justify-center">
@@ -318,7 +328,7 @@ function GroundingExercise({ onDone }: { onDone: () => void }) {
   )
 }
 
-function BubblePop({ onDone }: { onDone: () => void }) {
+function BubblePop({ onDone, soundEnabled }: { onDone: () => void; soundEnabled?: boolean }) {
   const [bubbles, setBubbles] = useState<{ id: number; x: number; y: number; size: number; color: string; popping: boolean }[]>([])
   const [score, setScore] = useState(0)
   const idRef = useRef(0)
@@ -338,7 +348,7 @@ function BubblePop({ onDone }: { onDone: () => void }) {
   const popBubble = useCallback((id: number) => {
     setBubbles(prev => prev.map(b => b.id === id ? { ...b, popping: true } : b))
     setScore(s => s + 1)
-    playSound('click')
+    if (soundEnabled) playSound('click')
     setTimeout(() => setBubbles(prev => prev.filter(b => b.id !== id)), 200)
   }, [])
 
@@ -346,7 +356,7 @@ function BubblePop({ onDone }: { onDone: () => void }) {
     <div className="flex flex-col items-center gap-3 py-2">
       <div className="flex items-center justify-between w-full max-w-xs">
         <span className="text-sm font-bold text-text-secondary">💥 {score}</span>
-        <Lumi mood="excited" message="¡Explota!" size="sm" />
+        <DinoCalma message="¡Explota!" size="sm" />
         <Button variant="outline" size="sm" onClick={onDone}>Terminar</Button>
       </div>
 
@@ -370,7 +380,7 @@ function BubblePop({ onDone }: { onDone: () => void }) {
   )
 }
 
-function EnhancedSoundPlayer({ onDone }: { onDone: () => void }) {
+function EnhancedSoundPlayer({ onDone, soundEnabled }: { onDone: () => void; soundEnabled?: boolean }) {
   const [active, setActive] = useState<SoundType | null>(null)
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({})
   const ctxRef = useRef<AudioContext | null>(null)
@@ -428,6 +438,7 @@ function EnhancedSoundPlayer({ onDone }: { onDone: () => void }) {
   const handleToggle = (id: SoundType) => {
     stop()
     if (active !== id) {
+      if (!soundEnabled) return
       setActive(id)
       playSoundType(id)
     } else { setActive(null) }
@@ -443,16 +454,16 @@ function EnhancedSoundPlayer({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="flex flex-col items-center gap-4 py-2">
-      <Lumi mood="idle" message="Elige un sonido" size="sm" />
+      <DinoCalma message="Elige un sonido" size="sm" />
       <div className="grid grid-cols-3 gap-2 w-full max-w-sm">
         {sounds.map(s => (
-          <button key={s.id} onClick={() => handleToggle(s.id)}
-            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all active:scale-[0.95] ${
+          <button key={s.id} onClick={() => handleToggle(s.id)} aria-label={s.label}
+            className={`flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 transition-all active:scale-[0.95] ${
               active === s.id ? 'bg-purple-100 border-purple-400 shadow-md ring-2 ring-purple-300' : 'bg-white border-border hover:border-purple-300'
             }`}
           >
-            <span className="text-2xl">{s.icon}</span>
-            <span className="text-xs font-bold text-text-primary text-center leading-tight">{s.label}</span>
+            <span className="text-3xl">{s.icon}</span>
+            <span className="text-sm font-bold text-text-primary text-center leading-tight">{s.label}</span>
           </button>
         ))}
       </div>
@@ -489,7 +500,7 @@ function EmergencyCalm({ onDone }: { onDone: () => void }) {
     return (
       <div className="flex flex-col items-center gap-4 py-6 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-          <Lumi mood="happy" size="lg" />
+                <DinoCalma size="lg" />
         </motion.div>
         <p className="text-lg font-extrabold text-text-primary">Respira hondo</p>
         <p className="text-sm text-text-muted">Tómate tu tiempo para volver</p>
@@ -503,7 +514,7 @@ function EmergencyCalm({ onDone }: { onDone: () => void }) {
   return (
     <div className="flex flex-col items-center gap-6 py-4 text-center">
       <motion.div animate={{ scale: phase === 'breath' ? [1, 1.3, 1] : 1 }} transition={{ duration: 3, repeat: phase === 'breath' ? Infinity : 0 }}>
-        <Lumi mood="idle" message={phase === 'breath' ? 'Respira conmigo' : 'Toca 5 veces'} size="md" />
+        <DinoCalma message={phase === 'breath' ? 'Respira conmigo' : 'Toca 5 veces'} size="md" />
       </motion.div>
 
       {phase === 'breath' ? (
@@ -631,6 +642,50 @@ function HistoryView({ sessions, onClose }: { sessions: CalmSession[]; onClose: 
   )
 }
 
+const CONFETTI_COLORS = ['#44B39D', '#FFB347', '#6BCB77', '#8B5CF6', '#FF6B6B', '#FFC800', '#FF6B00']
+
+function ConfettiBurst() {
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {Array.from({ length: 40 }).map((_, i) => {
+        const x = Math.random() * 100
+        const drift = (Math.random() - 0.5) * 200
+        const fall = 300 + Math.random() * 400
+        const delay = Math.random() * 0.5
+        const size = 6 + Math.random() * 8
+        const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length]
+        const rotate = Math.random() * 720
+        return (
+          <motion.div
+            key={i}
+            className="absolute rounded-sm"
+            style={{
+              left: `${x}%`, top: -20,
+              width: size, height: size * 0.6,
+              backgroundColor: color,
+            }}
+            initial={{ y: -20, rotate: 0, opacity: 1 }}
+            animate={{ y: fall, x: drift, rotate, opacity: [1, 0.8, 0] }}
+            transition={{ duration: 1.5 + Math.random(), delay, ease: 'easeIn' }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function SoundToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle}
+      className="text-lg shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+      title={enabled ? 'Silenciar' : 'Activar sonido'}
+      aria-label={enabled ? 'Silenciar sonidos' : 'Activar sonidos'}
+    >
+      {enabled ? '🔊' : '🔇'}
+    </button>
+  )
+}
+
 function StepWrapper({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <motion.div
@@ -638,7 +693,7 @@ function StepWrapper({ children, className = '' }: { children: React.ReactNode; 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className={className}
+      className={`flex flex-col gap-4 ${className}`}
     >
       {children}
     </motion.div>
@@ -654,14 +709,29 @@ export default function RinconCalmaPage() {
   const [selectedActivity, setSelectedActivity] = useState<CalmActivity | null>(null)
   const [selectedBreath, setSelectedBreath] = useState<BreathPattern | null>(null)
   const [sessions, setSessions] = useState<CalmSession[]>([])
-  const [sessionStart] = useState(Date.now())
+  const sessionStartRef = useRef(Date.now())
   const [showHistory, setShowHistory] = useState(false)
   const [showEmergencyConfirm, setShowEmergencyConfirm] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   useEffect(() => {
-    warmPictogramCache(EMOTIONS.map(e => e.pictogram))
     try { const raw = localStorage.getItem(SESSIONS_KEY); if (raw) setSessions(JSON.parse(raw)) } catch {}
   }, [])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'Escape') {
+        if (showEmergencyConfirm) { setShowEmergencyConfirm(false); return }
+        if (step === 'check-in') { window.history.back(); return }
+        if (step === 'home') { setStep('check-in'); return }
+        if (step !== 'check-out') { setStep('home'); return }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [step, showEmergencyConfirm])
 
   const saveSession = useCallback((after: Emotion | null, intensityAft: number) => {
     const session: CalmSession = {
@@ -669,18 +739,22 @@ export default function RinconCalmaPage() {
       moodBefore: moodBefore, moodAfter: after,
       intensityBefore, intensityAfter: intensityAft,
       activity: selectedActivity, breathPattern: selectedBreath ?? undefined,
-      duration: Math.round((Date.now() - sessionStart) / 1000),
+      duration: Math.round((Date.now() - sessionStartRef.current) / 1000),
       completedEmergency: step === 'emergency-calm',
     }
     const updated = [session, ...sessions].slice(0, 50)
     setSessions(updated)
     try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(updated)) } catch {}
-  }, [moodBefore, intensityBefore, selectedActivity, selectedBreath, sessionStart, sessions, step])
+  }, [moodBefore, intensityBefore, selectedActivity, selectedBreath, sessions, step])
+
+  const ps = useCallback((name: 'click' | 'celebration') => {
+    if (soundEnabled) playSound(name)
+  }, [soundEnabled])
 
   const handleCheckIn = (emotion: Emotion) => {
     setMoodBefore(emotion)
     setStep('home')
-    playSound('click')
+    ps('click')
   }
 
   const handleActivityDone = () => setStep('check-out')
@@ -688,7 +762,9 @@ export default function RinconCalmaPage() {
   const handleCheckOut = (emotion: Emotion) => {
     setMoodAfter(emotion)
     saveSession(emotion, intensityAfter)
-    playSound('celebration')
+    setShowConfetti(true)
+    setTimeout(() => setShowConfetti(false), 2500)
+    ps('celebration')
   }
 
   const handleRestart = () => {
@@ -696,283 +772,318 @@ export default function RinconCalmaPage() {
     setIntensityBefore(3); setIntensityAfter(3)
     setSelectedActivity(null); setSelectedBreath(null)
     setShowEmergencyConfirm(false)
+    sessionStartRef.current = Date.now()
   }
 
   const userEnergy = moodBefore ? (EMOTIONS.find(e => e.id === moodBefore)?.energy ?? 'medium') : null
   const filteredActivities = userEnergy ? ACTIVITIES.filter(a => a.energy.includes(userEnergy)) : ACTIVITIES
 
-  if (showHistory) return (
-    <div className="flex flex-col gap-4 pb-8">
-      <StepWrapper>
-        <HistoryView sessions={sessions} onClose={() => setShowHistory(false)} />
-      </StepWrapper>
-    </div>
-  )
-
-  if (step === 'check-in') {
-    return (
+  function renderStepContent() {
+    if (showHistory) return (
       <div className="flex flex-col gap-4 pb-8">
         <StepWrapper>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
-            <div className="flex-1">
-              <h1 className="heading-page">Rincón de Calma</h1>
-              <p className="text-body">Un espacio seguro para aprender a autorregularse</p>
-            </div>
-            {sessions.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setShowHistory(true)}>Historial</Button>
-            )}
-          </div>
-          <div className="flex flex-col items-center gap-4">
-            <Lumi mood="thinking" message="¿Cómo te sientes?" size="md" />
-            <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckIn} showIntensity intensity={intensityBefore} onIntensityChange={setIntensityBefore} />
-            <Button variant="outline" size="md" onClick={() => { setMoodBefore(null); setIntensityBefore(0); setStep('home') }}
-              className="w-full max-w-xs border-dashed"
-            >No sé / Prefiero empezar</Button>
+          <HistoryView sessions={sessions} onClose={() => setShowHistory(false)} />
+        </StepWrapper>
+      </div>
+    )
 
-            <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
-              <div className="flex gap-3">
-                <span className="text-2xl shrink-0">💡</span>
+    switch (step) {
+      case 'check-in':
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
                 <div className="flex-1">
-                  <h3 className="heading-card mb-1">Consejos útiles</h3>
-                  <p className="text-meta leading-relaxed">
-                    El rincón de calma es un espacio seguro para que el niño aprenda a autorregularse.
-                    Animalo a elegir la actividad que más le guste y celebra su esfuerzo, no solo el
-                    resultado. La consistencia crea predictibilidad y reduce la ansiedad.
-                  </p>
+                  <h1 className="heading-page">Rincón de Calma</h1>
+                  <p className="text-body">Un espacio seguro para aprender a autorregularse</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
+                {sessions.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setShowHistory(true)}>Historial</Button>
+                )}
+              </div>
+              <div className="flex flex-col items-center gap-4">
+                <DinoCalma message="¿Cómo te sientes?" size="md" />
+                <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckIn} showIntensity intensity={intensityBefore} onIntensityChange={setIntensityBefore} />
+                <Button variant="outline" size="md" onClick={() => { setMoodBefore(null); setIntensityBefore(3); setStep('home') }}
+                  className="w-full max-w-xs border-dashed"
+                >No sé / Prefiero empezar</Button>
+              </div>
+              <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+                <div className="flex gap-3">
+                  <span className="text-2xl shrink-0">💡</span>
+                  <div className="flex-1">
+                    <h3 className="heading-card mb-1">Consejos útiles</h3>
+                    <p className="text-meta leading-relaxed">
+                      El rincón de calma es un espacio seguro para que el niño aprenda a autorregularse.
+                      Animalo a elegir la actividad que más le guste y celebra su esfuerzo, no solo el
+                      resultado. La consistencia crea predictibilidad y reduce la ansiedad.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </StepWrapper>
+          </div>
+        )
+
+      case 'home':
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep('check-in')}>← Atrás</Button>
+                <div className="flex-1">
+                  <h1 className="heading-page">Rincón de Calma</h1>
+                  <p className="text-body">Elije lo que necesitas ahora</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
+                <button onClick={() => setShowEmergencyConfirm(true)} className="text-2xl shrink-0" title="Ayuda rápida" aria-label="Ayuda rápida de emergencia">🆘</button>
+              </div>
+
+              <div className="flex flex-col items-center gap-4">
+                <DinoCalma message={moodBefore ? `Estás ${EMOTION_LABELS[moodBefore]?.toLowerCase() ?? 'así'}` : 'Elige una actividad'} size="md" />
+
+                {userEnergy && (
+                  <div className="flex justify-center gap-1">
+                    <span className="text-xs text-text-muted">Energía:</span>
+                    {['high', 'medium', 'low'].map(e => (
+                      <span key={e} className={`text-badge px-2 py-0.5 rounded-full ${e === userEnergy ? 'bg-purple-200 text-purple-800 font-bold' : 'text-text-muted'}`}>
+                        {e === 'high' ? '🔥 Alta' : e === 'medium' ? '🌿 Media' : '😴 Baja'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2 w-full max-w-sm">
+                  {filteredActivities.map(activity => (
+                    <motion.button key={activity.id} whileTap={{ scale: 0.97 }}
+                      onClick={() => { setSelectedActivity(activity.id); setStep(activity.id === 'breathing' ? 'home' : activity.id as Step); if (activity.id !== 'breathing') ps('click') }}
+                      className="w-full flex items-center gap-3 p-4 bg-white rounded-2xl border-2 border-border active:border-purple-300 active:bg-purple-50 transition-all text-left hover:border-purple-300"
+                      aria-label={activity.title}
+                    >
+                      <span className="text-3xl">{activity.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-extrabold text-base text-text-primary">{activity.title}</p>
+                        <p className="text-meta truncate">{activity.desc}</p>
+                      </div>
+                      {activity.id === 'breathing' && <span className="text-xs text-text-muted">→ Elegir patrón</span>}
+                      {activity.id === 'sounds' && <span className="text-xs text-text-muted shrink-0">🎵</span>}
+                    </motion.button>
+                  ))}
                 </div>
               </div>
-            </Card>
-          </div>
-        </StepWrapper>
-      </div>
-    )
-  }
 
-  if (step === 'home') {
-    return (
-      <div className="flex flex-col gap-4 pb-8">
-        <StepWrapper>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setStep('check-in')}>← Atrás</Button>
-            <div className="flex-1">
-              <h1 className="heading-page">Rincón de Calma</h1>
-              <p className="text-body">Elije lo que necesitas ahora</p>
-            </div>
-            <button onClick={() => setShowEmergencyConfirm(true)} className="text-2xl shrink-0" title="Ayuda rápida">🆘</button>
-          </div>
-
-          <div className="flex flex-col items-center gap-4">
-            <Lumi mood="idle" message={moodBefore ? `Estás ${EMOTION_LABELS[moodBefore]?.toLowerCase() ?? 'así'}` : 'Elige una actividad'} size="md" />
-
-            {userEnergy && (
-              <div className="flex justify-center gap-1">
-                <span className="text-xs text-text-muted">Energía:</span>
-                {['high', 'medium', 'low'].map(e => (
-                  <span key={e} className={`text-badge px-2 py-0.5 rounded-full ${e === userEnergy ? 'bg-purple-200 text-purple-800 font-bold' : 'text-text-muted'}`}>
-                    {e === 'high' ? '🔥 Alta' : e === 'medium' ? '🌿 Media' : '😴 Baja'}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2 w-full max-w-sm">
-              {filteredActivities.map(activity => (
-                <motion.button key={activity.id} whileTap={{ scale: 0.97 }}
-                  onClick={() => { setSelectedActivity(activity.id); setStep(activity.id === 'breathing' ? 'home' : activity.id as Step); if (activity.id !== 'breathing') playSound('click') }}
-                  className="w-full flex items-center gap-3 p-3.5 bg-white rounded-2xl border-2 border-border active:border-purple-300 active:bg-purple-50 transition-all text-left hover:border-purple-300"
-                >
-                  <span className="text-2xl">{activity.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-extrabold text-sm text-text-primary">{activity.title}</p>
-                    <p className="text-meta truncate">{activity.desc}</p>
+              {selectedActivity === 'breathing' && step === 'home' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <p className="text-xs font-bold text-text-secondary mb-2">Elige un patrón de respiración:</p>
+                  <div className="flex flex-col gap-2">
+                    {BREATH_PATTERNS.map(bp => (
+                      <button key={bp.id} onClick={() => { setSelectedBreath(bp.id); setStep('breathing'); ps('click') }}
+                        className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all active:scale-[0.97] text-left ${
+                          selectedBreath === bp.id ? 'bg-purple-100 border-purple-400' : 'bg-white border-border hover:border-purple-300'
+                        }`}
+                        aria-label={bp.title}
+                      >
+                        <span className="text-2xl">{bp.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-text-primary">{bp.title}</p>
+                          <p className="text-badge text-text-muted font-semibold">{bp.desc}</p>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  {activity.id === 'breathing' && <span className="text-xs text-text-muted">→ Elegir patrón</span>}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
-            <div className="flex gap-3">
-              <span className="text-2xl shrink-0">💡</span>
-              <div className="flex-1">
-                <h3 className="heading-card mb-1">Consejos útiles</h3>
-                <p className="text-meta leading-relaxed">
-                  El rincón de calma es un espacio seguro para que el niño aprenda a autorregularse.
-                  Animalo a elegir la actividad que más le guste y celebra su esfuerzo, no solo el
-                  resultado. La consistencia crea predictibilidad y reduce la ansiedad.
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <AnimatePresence>
-            {showEmergencyConfirm && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/40"
-                onClick={() => setShowEmergencyConfirm(false)}
-              >
-                <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-                  className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <span className="text-4xl block mb-2">🆘</span>
-                  <p className="font-extrabold text-text-primary mb-1">¿Necesitas ayuda rápida?</p>
-                  <p className="text-xs text-text-muted mb-4">Un ejercicio corto de respiración y anclaje para calmarte</p>
-                  <div className="flex gap-2 justify-center">
-                    <Button variant="outline" size="sm" onClick={() => setShowEmergencyConfirm(false)}>Cancelar</Button>
-                    <Button variant="primary" size="sm" onClick={() => { setShowEmergencyConfirm(false); setStep('emergency-calm'); setSelectedActivity('grounding') }}>
-                      Sí, ahora
-                    </Button>
+                  <div className="flex gap-2 mt-3 justify-center">
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedActivity(null)}>Cancelar</Button>
                   </div>
                 </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              )}
 
-          {selectedActivity === 'breathing' && step === 'home' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3">
-              <p className="text-xs font-bold text-text-secondary mb-2">Elige un patrón de respiración:</p>
-              <div className="flex flex-col gap-2">
-                {BREATH_PATTERNS.map(bp => (
-                  <button key={bp.id} onClick={() => { setSelectedBreath(bp.id); setStep('breathing'); playSound('click') }}
-                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all active:scale-[0.97] text-left ${
-                      selectedBreath === bp.id ? 'bg-purple-100 border-purple-400' : 'bg-white border-border hover:border-purple-300'
-                    }`}
-                  >
-                    <span className="text-xl">{bp.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-xs text-text-primary">{bp.title}</p>
-                      <p className="text-badge text-text-muted font-semibold">{bp.desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-3 justify-center">
-                <Button variant="ghost" size="sm" onClick={() => setSelectedActivity(null)}>Cancelar</Button>
-              </div>
-            </motion.div>
-          )}
-        </StepWrapper>
-      </div>
-    )
-  }
-
-  if (step === 'breathing') {
-    const config = BREATH_PATTERNS.find(bp => bp.id === selectedBreath) ?? BREATH_PATTERNS[0]
-    return (
-      <div className="flex flex-col gap-4 pb-8">
-        <StepWrapper>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
-            <div className="flex-1">
-              <h1 className="heading-page">Respirar</h1>
-              <p className="text-body">Sigue el ritmo de tu respiración</p>
-            </div>
-          </div>
-          <Card variant="bordered" padding="lg" className="w-full max-w-sm mx-auto">
-            <BreathCircle config={config} onDone={handleActivityDone} />
-          </Card>
-        </StepWrapper>
-      </div>
-    )
-  }
-
-  if (step === 'grounding') return (
-    <div className="flex flex-col gap-4 pb-8">
-      <StepWrapper>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
-          <div className="flex-1">
-            <h1 className="heading-page">Anclaje 5-4-3-2-1</h1>
-            <p className="text-body">Conecta con tus sentidos</p>
-          </div>
-        </div>
-        <GroundingExercise onDone={handleActivityDone} />
-      </StepWrapper>
-    </div>
-  )
-
-  if (step === 'bubbles') return (
-    <div className="flex flex-col gap-4 pb-8">
-      <StepWrapper>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
-          <div className="flex-1">
-            <h1 className="heading-page">Burbujas</h1>
-            <p className="text-body">Explota las burbujas para calmarte</p>
-          </div>
-        </div>
-        <BubblePop onDone={handleActivityDone} />
-      </StepWrapper>
-    </div>
-  )
-
-  if (step === 'sounds') return (
-    <div className="flex flex-col gap-4 pb-8">
-      <StepWrapper>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
-          <div className="flex-1">
-            <h1 className="heading-page">Sonidos</h1>
-            <p className="text-body">Elige tu ambiente sonoro</p>
-          </div>
-        </div>
-        <EnhancedSoundPlayer onDone={handleActivityDone} />
-      </StepWrapper>
-    </div>
-  )
-
-  if (step === 'emergency-calm') return (
-    <div className="flex flex-col gap-4 pb-8">
-      <StepWrapper>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
-          <div className="flex-1">
-            <h1 className="heading-page">Ayuda rápida</h1>
-            <p className="text-body">Un momento para calmarte</p>
-          </div>
-        </div>
-        <EmergencyCalm onDone={handleActivityDone} />
-      </StepWrapper>
-    </div>
-  )
-
-  if (step === 'check-out') {
-    const before = getEmotion(moodBefore)
-    return (
-      <div className="flex flex-col gap-4 pb-8">
-        <StepWrapper>
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <h1 className="heading-page">¿Cómo te sientes ahora?</h1>
-              <p className="text-body">Compara cómo estabas antes de la actividad</p>
-            </div>
-          </div>
-          {moodBefore && (
-            <Card variant="default" padding="sm" className="text-center mb-3">
-              <p className="text-xs text-text-muted">Antes: {before?.emoji} {before?.label}{'⚡'.repeat(intensityBefore)}</p>
-            </Card>
-          )}
-          <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckOut} showIntensity intensity={intensityAfter} onIntensityChange={setIntensityAfter} />
-          {moodAfter && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-4 text-center">
-              <Card variant="bordered" padding="md" className="bg-purple-50 border-purple-200">
-                <Lumi mood="happy" size="lg" />
-                <p className="text-lg font-extrabold text-text-primary mt-1">Gracias por venir al rincón de calma</p>
-                <p className="text-xs text-text-muted mt-1">Siempre estoy aquí cuando me necesites</p>
+              <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+                <div className="flex gap-3">
+                  <span className="text-2xl shrink-0">💡</span>
+                  <div className="flex-1">
+                    <h3 className="heading-card mb-1">Consejos útiles</h3>
+                    <p className="text-meta leading-relaxed">
+                      El rincón de calma es un espacio seguro para que el niño aprenda a autorregularse.
+                      Animalo a elegir la actividad que más le guste y celebra su esfuerzo, no solo el
+                      resultado. La consistencia crea predictibilidad y reduce la ansiedad.
+                    </p>
+                  </div>
+                </div>
               </Card>
-              <div className="flex gap-2 mt-3 justify-center">
-                <Button variant="outline" size="sm" onClick={handleRestart}>🔄 Otra vez</Button>
-                <Button variant="primary" size="sm" onClick={() => window.history.back()}>Listo</Button>
+
+              <AnimatePresence>
+                {showEmergencyConfirm && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/40"
+                    onClick={() => setShowEmergencyConfirm(false)}
+                  >
+                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+                      className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <span className="text-4xl block mb-2">🆘</span>
+                      <p className="font-extrabold text-text-primary mb-1">¿Necesitas ayuda rápida?</p>
+                      <p className="text-xs text-text-muted mb-4">Un ejercicio corto de respiración y anclaje para calmarte</p>
+                      <div className="flex gap-2 justify-center">
+                        <Button variant="outline" size="sm" onClick={() => setShowEmergencyConfirm(false)}>Cancelar</Button>
+                        <Button variant="primary" size="sm" onClick={() => { setShowEmergencyConfirm(false); setStep('emergency-calm'); setSelectedActivity('grounding') }}>
+                          Sí, ahora
+                        </Button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </StepWrapper>
+          </div>
+        )
+
+      case 'breathing': {
+        const config = BREATH_PATTERNS.find(bp => bp.id === selectedBreath) ?? BREATH_PATTERNS[0]
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+                <div className="flex-1">
+                  <h1 className="heading-page">Respirar</h1>
+                  <p className="text-body">Sigue el ritmo de tu respiración</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
-            </motion.div>
-          )}
-        </StepWrapper>
-      </div>
-    )
+              <Card variant="bordered" padding="lg" className="w-full max-w-sm mx-auto">
+                <BreathCircle config={config} onDone={handleActivityDone} />
+              </Card>
+            </StepWrapper>
+          </div>
+        )
+      }
+
+      case 'grounding':
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+                <div className="flex-1">
+                  <h1 className="heading-page">Anclaje 5-4-3-2-1</h1>
+                  <p className="text-body">Conecta con tus sentidos</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
+              </div>
+              <GroundingExercise onDone={handleActivityDone} soundEnabled={soundEnabled} />
+            </StepWrapper>
+          </div>
+        )
+
+      case 'bubbles':
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+                <div className="flex-1">
+                  <h1 className="heading-page">Burbujas</h1>
+                  <p className="text-body">Explota las burbujas para calmarte</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
+              </div>
+              <BubblePop onDone={handleActivityDone} soundEnabled={soundEnabled} />
+            </StepWrapper>
+          </div>
+        )
+
+      case 'sounds':
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+                <div className="flex-1">
+                  <h1 className="heading-page">Sonidos</h1>
+                  <p className="text-body">Elige tu ambiente sonoro</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
+              </div>
+              <EnhancedSoundPlayer onDone={handleActivityDone} soundEnabled={soundEnabled} />
+            </StepWrapper>
+          </div>
+        )
+
+      case 'emergency-calm':
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+                <div className="flex-1">
+                  <h1 className="heading-page">Ayuda rápida</h1>
+                  <p className="text-body">Un momento para calmarte</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
+              </div>
+              <EmergencyCalm onDone={handleActivityDone} />
+            </StepWrapper>
+          </div>
+        )
+
+      case 'check-out': {
+        const before = getEmotion(moodBefore)
+        return (
+          <div className="flex flex-col gap-4 pb-8">
+            <StepWrapper>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <h1 className="heading-page">¿Cómo te sientes ahora?</h1>
+                  <p className="text-body">Compara cómo estabas antes de la actividad</p>
+                </div>
+                <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
+              </div>
+              {moodBefore && (
+                <Card variant="default" padding="sm" className="text-center mb-3">
+                  <p className="text-xs text-text-muted">Antes: {before?.emoji} {before?.label}{'⚡'.repeat(intensityBefore)}</p>
+                </Card>
+              )}
+              <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckOut} showIntensity intensity={intensityAfter} onIntensityChange={setIntensityAfter} />
+              {moodAfter && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-4 text-center">
+                  <Card variant="bordered" padding="md" className="bg-purple-50 border-purple-200">
+                    <DinoCalma size="lg" />
+                    <p className="text-lg font-extrabold text-text-primary mt-1">Gracias por venir al rincón de calma</p>
+                    <p className="text-xs text-text-muted mt-1">Siempre estoy aquí cuando me necesites</p>
+                  </Card>
+                  <div className="flex gap-2 mt-3 justify-center">
+                    <Button variant="outline" size="sm" onClick={handleRestart}>🔄 Otra vez</Button>
+                    <Button variant="primary" size="sm" onClick={() => window.history.back()}>Listo</Button>
+                  </div>
+                </motion.div>
+              )}
+            </StepWrapper>
+          </div>
+        )
+      }
+
+      default:
+        return null
+    }
   }
 
-  return null
+  return (
+    <>
+      {showConfetti && <ConfettiBurst />}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={showHistory ? 'history' : step}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.2 }}
+        >
+          {renderStepContent()}
+        </motion.div>
+      </AnimatePresence>
+    </>
+  )
 }
