@@ -78,18 +78,19 @@ const ACTIVITIES: { id: CalmActivity; icon: string; title: string; desc: string;
 
 const ACTIVITY_NAMES: Record<CalmActivity, string> = { breathing: 'Respiración', grounding: 'Anclaje', bubbles: 'Burbujas', sounds: 'Sonidos' }
 const EMOTION_LABELS: Record<Emotion, string> = { happy: 'Alegre', sad: 'Triste', angry: 'Enojado', scared: 'Asustado', tired: 'Cansado', nervous: 'Nervioso' }
-const SOUND_NAMES: Record<SoundType, string> = { rain: 'Lluvia', waves: 'Olas', forest: 'Bosque', 'brown-noise': 'Ruido marrón', 'white-noise': 'Ruido blanco' }
 
 const SESSIONS_KEY = 'rincon-calma-sessions'
-const PHASE_COLORS: Record<string, string> = { inhale: 'from-emerald-300 to-teal-300', 'inhale-more': 'from-teal-300 to-cyan-300', hold: 'from-amber-200 to-yellow-200', exhale: 'from-blue-300 to-indigo-300' }
+const PHASE_COLORS: Record<string, string> = { inhale: '#34d399', 'inhale-more': '#2dd4bf', hold: '#fbbf24', exhale: '#60a5fa' }
+const PETAL_COLORS = ['#a78bfa', '#34d399', '#f472b6', '#60a5fa']
 
 function getEmotion(emotion: string | null): EmotionData | undefined { return EMOTIONS.find(e => e.id === emotion) }
 
 function IntensitySlider({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
+  const clamped = Math.max(1, Math.min(5, value))
   return (
     <div className="flex items-center gap-2 w-full max-w-xs">
       <span className="text-xs text-text-muted w-12 text-right">Poco</span>
-      <input type="range" min={1} max={5} step={1} value={value} disabled={disabled}
+      <input type="range" min={1} max={5} step={1} value={clamped} disabled={disabled}
         onChange={e => onChange(Number(e.target.value))}
         className="flex-1 accent-purple-500 h-2 rounded-full appearance-none bg-purple-200 cursor-pointer disabled:opacity-40"
       />
@@ -112,7 +113,9 @@ function EmotionGrid({ emotions, onSelect, selected, intensity, onIntensityChang
               onClick={() => onSelect?.(emotion.id)}
               disabled={disabled}
               className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed ${
-                isSelected ? 'bg-purple-100 border-purple-400 ring-2 ring-purple-300' : `${emotion.bg} ${emotion.border}`
+                isSelected
+                  ? 'bg-purple-100 border-purple-400 ring-2 ring-purple-300'
+                  : `${emotion.bg} ${emotion.border} bg-white hover:border-purple-300`
               }`}
             >
               <span className="text-3xl">{emotion.emoji}</span>
@@ -146,45 +149,84 @@ function BreathCircle({ config, onDone }: { config: BreathConfig; onDone: () => 
     return () => clearTimeout(t)
   }, [phaseIdx, current.duration, phases.length])
 
-  const progress = useMemo(() => {
-    const isInhale = current.key === 'inhale' || current.key === 'inhale-more'
-    const isExhale = current.key === 'exhale'
-    return isInhale ? 1.5 : isExhale ? 0.6 : 1
-  }, [current.key])
+  const prevPhaseIdx = phaseIdx === 0 ? phases.length - 1 : phaseIdx - 1
+  const prevKey = phases[prevPhaseIdx].key
+  const currentKey = current.key
 
-  const gradient = PHASE_COLORS[current.key] ?? 'from-purple-300 to-pink-200'
+  const isInhale = currentKey === 'inhale' || currentKey === 'inhale-more'
+  const isExhale = currentKey === 'exhale'
+  const isPrevInhale = prevKey === 'inhale' || prevKey === 'inhale-more'
+
+  const petalRadius = isInhale ? 64 : isExhale ? 24 : isPrevInhale ? 64 : 24
+  const petalScale = isInhale ? 1 : isExhale ? 0.6 : isPrevInhale ? 1 : 0.6
+  const groupRotation = isInhale ? 45 : isExhale ? 0 : isPrevInhale ? 45 : 0
+  const centerScale = isInhale ? 1.3 : isExhale ? 0.8 : isPrevInhale ? 1.3 : 0.8
+
+  const circumference = 2 * Math.PI * 60
+  const PETAL_COUNT = 4
 
   return (
     <div className="flex flex-col items-center gap-6 py-2">
       <p className="text-sm font-bold text-text-secondary">{config.title}</p>
 
-      <div className="relative flex items-center justify-center w-52 h-52">
-        <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-          <motion.circle cx="50" cy="50" r="42" fill="none" stroke="rgba(168,85,247,0.15)" strokeWidth="2"
-            strokeDasharray={264} strokeDashoffset={264 * (1 - (phaseIdx + 1) / phases.length)}
-            animate={{ strokeDashoffset: 264 * (1 - (phaseIdx + 1) / phases.length) }}
-            transition={{ duration: 0.4, ease: 'easeInOut' }}
+      <div className="relative flex items-center justify-center w-56 h-56">
+        <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r="60" fill="none" stroke="rgba(168,85,247,0.12)" strokeWidth="3" />
+          <motion.circle key={phaseIdx}
+            cx="70" cy="70" r="60" fill="none"
+            stroke={PHASE_COLORS[currentKey] ?? '#a78bfa'}
+            strokeWidth="3" strokeLinecap="round"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset: 0 }}
+            transition={{ duration: current.duration / 1000, ease: 'linear' }}
           />
         </svg>
+
+        <div className="absolute inset-0 flex items-center justify-center">
+          <motion.div
+            className="relative w-full h-full"
+            animate={{ rotate: groupRotation }}
+            transition={{ duration: current.duration / 1000, ease: 'easeInOut' }}
+          >
+            {Array.from({ length: PETAL_COUNT }).map((_, i) => {
+              const angle = (i * 360) / PETAL_COUNT
+              const rad = (angle * Math.PI) / 180
+              const x = Math.cos(rad) * petalRadius
+              const y = Math.sin(rad) * petalRadius
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute w-8 h-8 rounded-full left-1/2 top-1/2 -ml-4 -mt-4"
+                  style={{
+                    background: `radial-gradient(circle at 40% 35%, ${PETAL_COLORS[i]}80, ${PETAL_COLORS[i]}40)`,
+                  }}
+                  animate={{ x, y, scale: petalScale }}
+                  transition={{ duration: current.duration / 1000, ease: 'easeInOut' }}
+                />
+              )
+            })}
+          </motion.div>
+        </div>
+
         <motion.div
-          animate={{ scale: progress }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className={`w-32 h-32 rounded-full bg-gradient-to-br ${gradient} opacity-70 absolute`}
-        />
-        <motion.div
-          animate={{ scale: Math.max(progress - 0.25, 0.4) }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="w-20 h-20 rounded-full bg-white/70 absolute flex items-center justify-center"
+          className="w-14 h-14 rounded-full bg-white flex items-center justify-center z-10 shadow-inner"
+          animate={{ scale: centerScale }}
+          transition={{ duration: current.duration / 1000, ease: 'easeInOut' }}
         >
-          <span className="text-2xl">{config.icon}</span>
+          <span className="text-xl">{config.icon}</span>
         </motion.div>
       </div>
 
       <div className="flex items-center gap-3">
         {phases.map((p, i) => (
-          <motion.div key={p.key}
-            animate={{ backgroundColor: i === phaseIdx ? 'rgba(168,85,247,0.3)' : 'rgba(168,85,247,0.1)', scale: i === phaseIdx ? 1.15 : 1 }}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-text-secondary"
+          <motion.div key={p.key + i}
+            animate={{
+              backgroundColor: i === phaseIdx ? `${PHASE_COLORS[p.key]}40` : 'rgba(168,85,247,0.08)',
+              scale: i === phaseIdx ? 1.2 : 1,
+              borderColor: i === phaseIdx ? PHASE_COLORS[p.key] : 'rgba(168,85,247,0.15)',
+            }}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-text-secondary border-2"
           >
             {i + 1}
           </motion.div>
@@ -330,13 +372,13 @@ function BubblePop({ onDone }: { onDone: () => void }) {
 
 function EnhancedSoundPlayer({ onDone }: { onDone: () => void }) {
   const [active, setActive] = useState<SoundType | null>(null)
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({})
   const ctxRef = useRef<AudioContext | null>(null)
   const sourceRef = useRef<AudioBufferSourceNode | null>(null)
-  const cleanupRef = useRef<(() => void) | null>(null)
 
   const stop = useCallback(() => {
-    cleanupRef.current?.()
-    cleanupRef.current = null
+    Object.values(audioRefs.current).forEach(a => { a.pause(); a.currentTime = 0 })
+    audioRefs.current = {}
     try { sourceRef.current?.stop() } catch {}
     sourceRef.current = null
     try { ctxRef.current?.close() } catch {}
@@ -345,85 +387,42 @@ function EnhancedSoundPlayer({ onDone }: { onDone: () => void }) {
 
   useEffect(() => stop, [stop])
 
-  function buildNoiseBuffer(ctx: AudioContext, duration: number, modulate?: (t: number) => number, color: 'white' | 'brown' = 'white'): AudioBuffer {
+  function buildNoiseBuffer(ctx: AudioContext, duration: number, color: 'white' | 'brown' = 'white'): AudioBuffer {
     const bufferSize = ctx.sampleRate * duration
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
     const data = buffer.getChannelData(0)
     let lastOut = 0
     for (let i = 0; i < bufferSize; i++) {
-      const t = i / ctx.sampleRate
       let sample = Math.random() * 2 - 1
       if (color === 'brown') { sample = (lastOut + (0.02 * sample)) / 1.02; lastOut = sample; sample *= 1.5 }
-      const envelope = modulate ? modulate(t) : 1
-      data[i] = sample * envelope
+      data[i] = sample
     }
     return buffer
   }
 
-  function playBuffer(ctx: AudioContext, buffer: AudioBuffer, gainVal: number, freq?: number) {
-    const source = ctx.createBufferSource()
-    source.buffer = buffer
-    source.loop = true
-    const gain = ctx.createGain()
-    gain.gain.value = gainVal
-    if (freq) {
-      const filter = ctx.createBiquadFilter()
-      filter.type = 'lowpass'
-      filter.frequency.value = freq
-      source.connect(filter)
-      filter.connect(gain)
-    } else { source.connect(gain) }
-    gain.connect(ctx.destination)
-    source.start()
-    return source
-  }
-
   const playSoundType = useCallback((type: SoundType) => {
+    if (type === 'rain' || type === 'waves' || type === 'forest') {
+      const filename = type === 'rain' ? 'rain.ogg' : type === 'waves' ? 'waves.ogg' : 'forest.ogg'
+      const audio = new Audio(`/assets/sounds/${filename}`)
+      audio.loop = true
+      audio.volume = 0.5
+      audioRefs.current[type] = audio
+      audio.play().catch(() => {})
+      return
+    }
+
     const ctx = new AudioContext()
     ctxRef.current = ctx
-    let source: AudioBufferSourceNode
-
-    switch (type) {
-      case 'rain': {
-        const buf = buildNoiseBuffer(ctx, 4, t => Math.max(0, 1 - t / 4))
-        source = playBuffer(ctx, buf, 0.15, 1000)
-        break
-      }
-      case 'waves': {
-        const buf = buildNoiseBuffer(ctx, 4, t => (Math.sin(t * 0.3) * 0.5 + 0.5) * 0.3)
-        source = playBuffer(ctx, buf, 0.12, 500)
-        break
-      }
-      case 'forest': {
-        const buf = buildNoiseBuffer(ctx, 4, () => 0)
-        source = playBuffer(ctx, buf, 0)
-        const chirpInterval = setInterval(() => {
-          if (!ctxRef.current) { clearInterval(chirpInterval); return }
-          const osc = ctx.createOscillator()
-          const chirpGain = ctx.createGain()
-          osc.type = 'sine'
-          osc.frequency.value = 1000 + Math.random() * 1500
-          osc.frequency.linearRampToValueAtTime(500 + Math.random() * 500, ctx.currentTime + 0.1)
-          chirpGain.gain.value = 0.04
-          chirpGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
-          osc.connect(chirpGain); chirpGain.connect(ctx.destination)
-          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.12)
-        }, 2000 + Math.random() * 3000)
-        cleanupRef.current = () => clearInterval(chirpInterval)
-        break
-      }
-      case 'brown-noise': {
-        const buf = buildNoiseBuffer(ctx, 4, undefined, 'brown')
-        source = playBuffer(ctx, buf, 0.12)
-        break
-      }
-      case 'white-noise': {
-        const buf = buildNoiseBuffer(ctx, 4)
-        source = playBuffer(ctx, buf, 0.08)
-        break
-      }
-    }
-    sourceRef.current = source!
+    const buf = buildNoiseBuffer(ctx, 4, type === 'brown-noise' ? 'brown' : 'white')
+    const source = ctx.createBufferSource()
+    source.buffer = buf
+    source.loop = true
+    const gain = ctx.createGain()
+    gain.gain.value = type === 'brown-noise' ? 0.12 : 0.08
+    source.connect(gain)
+    gain.connect(ctx.destination)
+    source.start()
+    sourceRef.current = source
   }, [])
 
   const handleToggle = (id: SoundType) => {
@@ -449,11 +448,11 @@ function EnhancedSoundPlayer({ onDone }: { onDone: () => void }) {
         {sounds.map(s => (
           <button key={s.id} onClick={() => handleToggle(s.id)}
             className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all active:scale-[0.95] ${
-              active === s.id ? 'bg-purple-100 border-purple-400 shadow-md ring-2 ring-purple-300' : 'bg-white border-border'
+              active === s.id ? 'bg-purple-100 border-purple-400 shadow-md ring-2 ring-purple-300' : 'bg-white border-border hover:border-purple-300'
             }`}
           >
             <span className="text-2xl">{s.icon}</span>
-            <span className="text-[11px] font-bold text-text-primary text-center leading-tight">{s.label}</span>
+            <span className="text-xs font-bold text-text-primary text-center leading-tight">{s.label}</span>
           </button>
         ))}
       </div>
@@ -503,14 +502,18 @@ function EmergencyCalm({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="flex flex-col items-center gap-6 py-4 text-center">
-      <motion.div animate={{ scale: phase === 'breath' ? [1, 1.3, 1] : 1 }} transition={{ duration: 3, repeat: phase === 'breath' ? 0 : 0 }}>
+      <motion.div animate={{ scale: phase === 'breath' ? [1, 1.3, 1] : 1 }} transition={{ duration: 3, repeat: phase === 'breath' ? Infinity : 0 }}>
         <Lumi mood="idle" message={phase === 'breath' ? 'Respira conmigo' : 'Toca 5 veces'} size="md" />
       </motion.div>
 
       {phase === 'breath' ? (
         <>
           <p className="text-2xl font-extrabold text-text-primary">{breathLabels[breathPhase]}</p>
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-400 to-pink-300 opacity-70 mx-auto" />
+          <motion.div
+            animate={{ scale: breathPhase % 2 === 0 ? [1, 1.2, 1] : [1, 0.85, 1] }}
+            transition={{ duration: 3, ease: 'easeInOut' }}
+            className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-400 to-pink-300 opacity-70 mx-auto"
+          />
           <p className="text-xs text-text-muted">Un momento... vamos a calmarnos</p>
         </>
       ) : (
@@ -550,8 +553,6 @@ function HistoryView({ sessions, onClose }: { sessions: CalmSession[]; onClose: 
     const total = sessions.length
     const activityCounts: Record<string, number> = {}
     const emotionCounts: Record<string, number> = {}
-    const before = sessions.map(s => s.moodBefore).filter(Boolean)
-    const after = sessions.map(s => s.moodAfter).filter(Boolean)
     sessions.forEach(s => {
       if (s.activity) activityCounts[s.activity] = (activityCounts[s.activity] ?? 0) + 1
       if (s.moodBefore) emotionCounts[s.moodBefore] = (emotionCounts[s.moodBefore] ?? 0) + 1
@@ -566,7 +567,10 @@ function HistoryView({ sessions, onClose }: { sessions: CalmSession[]; onClose: 
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={onClose}>← Volver</Button>
-        <h2 className="text-lg font-extrabold text-text-primary">Mi historial</h2>
+        <div className="flex-1">
+          <h1 className="heading-page">Mi historial</h1>
+          <p className="text-body">Todas tus visitas al rincón de calma</p>
+        </div>
       </div>
 
       {sessions.length === 0 ? (
@@ -583,22 +587,22 @@ function HistoryView({ sessions, onClose }: { sessions: CalmSession[]; onClose: 
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div>
                   <p className="text-lg font-extrabold text-brand">{insights.total}</p>
-                  <p className="text-[10px] text-text-muted">Sesiones totales</p>
+                  <p className="text-badge text-text-muted font-semibold">Sesiones totales</p>
                 </div>
                 <div>
                   <p className="text-lg font-extrabold text-brand">{insights.improved}</p>
-                  <p className="text-[10px] text-text-muted">Cambiaste de emoción</p>
+                  <p className="text-badge text-text-muted font-semibold">Cambiaste de emoción</p>
                 </div>
                 {insights.topActivity && (
                   <div>
                     <p className="text-sm font-extrabold text-brand">{ACTIVITY_NAMES[insights.topActivity[0] as CalmActivity] ?? insights.topActivity[0]}</p>
-                    <p className="text-[10px] text-text-muted">Actividad favorita</p>
+                    <p className="text-badge text-text-muted font-semibold">Actividad favorita</p>
                   </div>
                 )}
                 {insights.topEmotion && (
                   <div>
                     <p className="text-sm font-extrabold text-brand">{EMOTION_LABELS[insights.topEmotion[0] as Emotion] ?? insights.topEmotion[0]} {getEmotion(insights.topEmotion[0])?.emoji}</p>
-                    <p className="text-[10px] text-text-muted">Emoción más frecuente</p>
+                    <p className="text-badge text-text-muted font-semibold">Emoción más frecuente</p>
                   </div>
                 )}
               </div>
@@ -624,6 +628,20 @@ function HistoryView({ sessions, onClose }: { sessions: CalmSession[]; onClose: 
         </>
       )}
     </div>
+  )
+}
+
+function StepWrapper({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className={className}
+    >
+      {children}
+    </motion.div>
   )
 }
 
@@ -683,155 +701,275 @@ export default function RinconCalmaPage() {
   const userEnergy = moodBefore ? (EMOTIONS.find(e => e.id === moodBefore)?.energy ?? 'medium') : null
   const filteredActivities = userEnergy ? ACTIVITIES.filter(a => a.energy.includes(userEnergy)) : ACTIVITIES
 
-  if (showHistory) return (<div className="max-w-lg mx-auto px-4 py-6"><HistoryView sessions={sessions} onClose={() => setShowHistory(false)} /></div>)
+  if (showHistory) return (
+    <div className="flex flex-col gap-4 pb-8">
+      <StepWrapper>
+        <HistoryView sessions={sessions} onClose={() => setShowHistory(false)} />
+      </StepWrapper>
+    </div>
+  )
 
   if (step === 'check-in') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
-          <h1 className="text-xl font-extrabold text-text-primary">Rincón de Calma</h1>
-          {sessions.length > 0 && (
-            <button onClick={() => setShowHistory(true)} className="ml-auto text-xs text-text-muted underline">Historial</button>
-          )}
-        </div>
-        <Lumi mood="thinking" message="¿Cómo te sientes?" size="md" />
-        <div className="mt-4">
-          <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckIn} showIntensity intensity={intensityBefore} onIntensityChange={setIntensityBefore} />
-        </div>
-        <button onClick={() => { setMoodBefore(null); setIntensityBefore(0); setStep('home') }}
-          className="w-full mt-3 py-3 text-center text-xs font-bold text-text-muted bg-white rounded-xl border-2 border-border border-dashed active:scale-[0.98] transition-all"
-        >No sé / Prefiero empezar</button>
+      <div className="flex flex-col gap-4 pb-8">
+        <StepWrapper>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
+            <div className="flex-1">
+              <h1 className="heading-page">Rincón de Calma</h1>
+              <p className="text-body">Un espacio seguro para aprender a autorregularse</p>
+            </div>
+            {sessions.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setShowHistory(true)}>Historial</Button>
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-4">
+            <Lumi mood="thinking" message="¿Cómo te sientes?" size="md" />
+            <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckIn} showIntensity intensity={intensityBefore} onIntensityChange={setIntensityBefore} />
+            <Button variant="outline" size="md" onClick={() => { setMoodBefore(null); setIntensityBefore(0); setStep('home') }}
+              className="w-full max-w-xs border-dashed"
+            >No sé / Prefiero empezar</Button>
+
+            <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+              <div className="flex gap-3">
+                <span className="text-2xl shrink-0">💡</span>
+                <div className="flex-1">
+                  <h3 className="heading-card mb-1">Consejos útiles</h3>
+                  <p className="text-meta leading-relaxed">
+                    El rincón de calma es un espacio seguro para que el niño aprenda a autorregularse.
+                    Animalo a elegir la actividad que más le guste y celebra su esfuerzo, no solo el
+                    resultado. La consistencia crea predictibilidad y reduce la ansiedad.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </StepWrapper>
       </div>
     )
   }
 
   if (step === 'home') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Button variant="ghost" size="sm" onClick={() => setStep('check-in')}>← Atrás</Button>
-          <h2 className="text-lg font-extrabold text-text-primary">¿Qué necesitas?</h2>
-          <button onClick={() => setShowEmergencyConfirm(true)} className="ml-auto text-2xl" title="Ayuda rápida">🆘</button>
-        </div>
-
-        <Lumi mood="idle" message={moodBefore ? `Estás ${EMOTION_LABELS[moodBefore]?.toLowerCase() ?? 'así'}` : 'Elige una actividad'} size="md" />
-
-        {userEnergy && (
-          <div className="flex justify-center gap-1 mb-3">
-            <span className="text-xs text-text-muted">Energía:</span>
-            {['high', 'medium', 'low'].map(e => (
-              <span key={e} className={`text-xs px-2 py-0.5 rounded-full ${e === userEnergy ? 'bg-purple-200 text-purple-800 font-bold' : 'text-text-muted'}`}>
-                {e === 'high' ? '🔥 Alta' : e === 'medium' ? '🌿 Media' : '😴 Baja'}
-              </span>
-            ))}
+      <div className="flex flex-col gap-4 pb-8">
+        <StepWrapper>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setStep('check-in')}>← Atrás</Button>
+            <div className="flex-1">
+              <h1 className="heading-page">Rincón de Calma</h1>
+              <p className="text-body">Elije lo que necesitas ahora</p>
+            </div>
+            <button onClick={() => setShowEmergencyConfirm(true)} className="text-2xl shrink-0" title="Ayuda rápida">🆘</button>
           </div>
-        )}
 
-        <div className="flex flex-col gap-2 mt-3">
-          {filteredActivities.map(activity => (
-            <motion.button key={activity.id} whileTap={{ scale: 0.97 }}
-              onClick={() => { setSelectedActivity(activity.id); setStep(activity.id === 'breathing' ? 'home' : activity.id as Step); if (activity.id !== 'breathing') playSound('click') }}
-              className="w-full flex items-center gap-3 p-3.5 bg-white rounded-2xl border-2 border-border active:border-purple-300 active:bg-purple-50 transition-all text-left"
-            >
-              <span className="text-2xl">{activity.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="font-extrabold text-sm text-text-primary">{activity.title}</p>
-                <p className="text-[11px] text-text-muted truncate">{activity.desc}</p>
+          <div className="flex flex-col items-center gap-4">
+            <Lumi mood="idle" message={moodBefore ? `Estás ${EMOTION_LABELS[moodBefore]?.toLowerCase() ?? 'así'}` : 'Elige una actividad'} size="md" />
+
+            {userEnergy && (
+              <div className="flex justify-center gap-1">
+                <span className="text-xs text-text-muted">Energía:</span>
+                {['high', 'medium', 'low'].map(e => (
+                  <span key={e} className={`text-badge px-2 py-0.5 rounded-full ${e === userEnergy ? 'bg-purple-200 text-purple-800 font-bold' : 'text-text-muted'}`}>
+                    {e === 'high' ? '🔥 Alta' : e === 'medium' ? '🌿 Media' : '😴 Baja'}
+                  </span>
+                ))}
               </div>
-              {activity.id === 'breathing' && <span className="text-xs text-text-muted">→ Elegir patrón</span>}
-            </motion.button>
-          ))}
-        </div>
+            )}
 
-        <AnimatePresence>
-          {showEmergencyConfirm && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/40"
-              onClick={() => setShowEmergencyConfirm(false)}
-            >
-              <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-                className="bg-white rounded-2xl p-6 max-w-xs w-full text-center"
-                onClick={e => e.stopPropagation()}
-              >
-                <span className="text-4xl block mb-2">🆘</span>
-                <p className="font-extrabold text-text-primary mb-1">¿Necesitas ayuda rápida?</p>
-                <p className="text-xs text-text-muted mb-4">Un ejercicio corto de respiración y anclaje para calmarte</p>
-                <div className="flex gap-2 justify-center">
-                  <Button variant="outline" size="sm" onClick={() => setShowEmergencyConfirm(false)}>Cancelar</Button>
-                  <Button variant="primary" size="sm" onClick={() => { setShowEmergencyConfirm(false); setStep('emergency-calm'); setSelectedActivity('grounding') }}>
-                    Sí, ahora
-                  </Button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {selectedActivity === 'breathing' && step === 'home' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3">
-            <p className="text-xs font-bold text-text-secondary mb-2">Elige un patrón de respiración:</p>
-            <div className="flex flex-col gap-2">
-              {BREATH_PATTERNS.map(bp => (
-                <button key={bp.id} onClick={() => { setSelectedBreath(bp.id); setStep('breathing'); playSound('click') }}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all active:scale-[0.97] text-left ${selectedBreath === bp.id ? 'bg-purple-100 border-purple-400' : 'bg-white border-border'}`}
+            <div className="flex flex-col gap-2 w-full max-w-sm">
+              {filteredActivities.map(activity => (
+                <motion.button key={activity.id} whileTap={{ scale: 0.97 }}
+                  onClick={() => { setSelectedActivity(activity.id); setStep(activity.id === 'breathing' ? 'home' : activity.id as Step); if (activity.id !== 'breathing') playSound('click') }}
+                  className="w-full flex items-center gap-3 p-3.5 bg-white rounded-2xl border-2 border-border active:border-purple-300 active:bg-purple-50 transition-all text-left hover:border-purple-300"
                 >
-                  <span className="text-xl">{bp.icon}</span>
+                  <span className="text-2xl">{activity.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs text-text-primary">{bp.title}</p>
-                    <p className="text-[10px] text-text-muted">{bp.desc}</p>
+                    <p className="font-extrabold text-sm text-text-primary">{activity.title}</p>
+                    <p className="text-meta truncate">{activity.desc}</p>
                   </div>
-                </button>
+                  {activity.id === 'breathing' && <span className="text-xs text-text-muted">→ Elegir patrón</span>}
+                </motion.button>
               ))}
             </div>
-            <div className="flex gap-2 mt-3 justify-center">
-              <Button variant="ghost" size="sm" onClick={() => setSelectedActivity(null)}>Cancelar</Button>
+          </div>
+
+          <Card variant="default" padding="md" className="bg-blue-50 border-blue-200">
+            <div className="flex gap-3">
+              <span className="text-2xl shrink-0">💡</span>
+              <div className="flex-1">
+                <h3 className="heading-card mb-1">Consejos útiles</h3>
+                <p className="text-meta leading-relaxed">
+                  El rincón de calma es un espacio seguro para que el niño aprenda a autorregularse.
+                  Animalo a elegir la actividad que más le guste y celebra su esfuerzo, no solo el
+                  resultado. La consistencia crea predictibilidad y reduce la ansiedad.
+                </p>
+              </div>
             </div>
-          </motion.div>
-        )}
+          </Card>
+
+          <AnimatePresence>
+            {showEmergencyConfirm && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/40"
+                onClick={() => setShowEmergencyConfirm(false)}
+              >
+                <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+                  className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-lg"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <span className="text-4xl block mb-2">🆘</span>
+                  <p className="font-extrabold text-text-primary mb-1">¿Necesitas ayuda rápida?</p>
+                  <p className="text-xs text-text-muted mb-4">Un ejercicio corto de respiración y anclaje para calmarte</p>
+                  <div className="flex gap-2 justify-center">
+                    <Button variant="outline" size="sm" onClick={() => setShowEmergencyConfirm(false)}>Cancelar</Button>
+                    <Button variant="primary" size="sm" onClick={() => { setShowEmergencyConfirm(false); setStep('emergency-calm'); setSelectedActivity('grounding') }}>
+                      Sí, ahora
+                    </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {selectedActivity === 'breathing' && step === 'home' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3">
+              <p className="text-xs font-bold text-text-secondary mb-2">Elige un patrón de respiración:</p>
+              <div className="flex flex-col gap-2">
+                {BREATH_PATTERNS.map(bp => (
+                  <button key={bp.id} onClick={() => { setSelectedBreath(bp.id); setStep('breathing'); playSound('click') }}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all active:scale-[0.97] text-left ${
+                      selectedBreath === bp.id ? 'bg-purple-100 border-purple-400' : 'bg-white border-border hover:border-purple-300'
+                    }`}
+                  >
+                    <span className="text-xl">{bp.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-xs text-text-primary">{bp.title}</p>
+                      <p className="text-badge text-text-muted font-semibold">{bp.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-3 justify-center">
+                <Button variant="ghost" size="sm" onClick={() => setSelectedActivity(null)}>Cancelar</Button>
+              </div>
+            </motion.div>
+          )}
+        </StepWrapper>
       </div>
     )
   }
 
   if (step === 'breathing') {
     const config = BREATH_PATTERNS.find(bp => bp.id === selectedBreath) ?? BREATH_PATTERNS[0]
-    return (<div className="max-w-lg mx-auto px-4 py-6"><BreathCircle config={config} onDone={handleActivityDone} /></div>)
+    return (
+      <div className="flex flex-col gap-4 pb-8">
+        <StepWrapper>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+            <div className="flex-1">
+              <h1 className="heading-page">Respirar</h1>
+              <p className="text-body">Sigue el ritmo de tu respiración</p>
+            </div>
+          </div>
+          <Card variant="bordered" padding="lg" className="w-full max-w-sm mx-auto">
+            <BreathCircle config={config} onDone={handleActivityDone} />
+          </Card>
+        </StepWrapper>
+      </div>
+    )
   }
 
-  if (step === 'grounding') return (<div className="max-w-lg mx-auto px-4 py-6"><GroundingExercise onDone={handleActivityDone} /></div>)
+  if (step === 'grounding') return (
+    <div className="flex flex-col gap-4 pb-8">
+      <StepWrapper>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+          <div className="flex-1">
+            <h1 className="heading-page">Anclaje 5-4-3-2-1</h1>
+            <p className="text-body">Conecta con tus sentidos</p>
+          </div>
+        </div>
+        <GroundingExercise onDone={handleActivityDone} />
+      </StepWrapper>
+    </div>
+  )
 
-  if (step === 'bubbles') return (<div className="max-w-lg mx-auto px-4 py-6"><BubblePop onDone={handleActivityDone} /></div>)
+  if (step === 'bubbles') return (
+    <div className="flex flex-col gap-4 pb-8">
+      <StepWrapper>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+          <div className="flex-1">
+            <h1 className="heading-page">Burbujas</h1>
+            <p className="text-body">Explota las burbujas para calmarte</p>
+          </div>
+        </div>
+        <BubblePop onDone={handleActivityDone} />
+      </StepWrapper>
+    </div>
+  )
 
-  if (step === 'sounds') return (<div className="max-w-lg mx-auto px-4 py-6"><EnhancedSoundPlayer onDone={handleActivityDone} /></div>)
+  if (step === 'sounds') return (
+    <div className="flex flex-col gap-4 pb-8">
+      <StepWrapper>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+          <div className="flex-1">
+            <h1 className="heading-page">Sonidos</h1>
+            <p className="text-body">Elige tu ambiente sonoro</p>
+          </div>
+        </div>
+        <EnhancedSoundPlayer onDone={handleActivityDone} />
+      </StepWrapper>
+    </div>
+  )
 
-  if (step === 'emergency-calm') return (<div className="max-w-lg mx-auto px-4 py-6"><EmergencyCalm onDone={handleActivityDone} /></div>)
+  if (step === 'emergency-calm') return (
+    <div className="flex flex-col gap-4 pb-8">
+      <StepWrapper>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setStep('home')}>← Atrás</Button>
+          <div className="flex-1">
+            <h1 className="heading-page">Ayuda rápida</h1>
+            <p className="text-body">Un momento para calmarte</p>
+          </div>
+        </div>
+        <EmergencyCalm onDone={handleActivityDone} />
+      </StepWrapper>
+    </div>
+  )
 
   if (step === 'check-out') {
     const before = getEmotion(moodBefore)
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-lg font-extrabold text-text-primary">¿Cómo te sientes ahora?</h2>
-        </div>
-        {moodBefore && (
-          <Card variant="default" padding="sm" className="text-center mb-3">
-            <p className="text-xs text-text-muted">Antes: {before?.emoji} {before?.label}{'⚡'.repeat(intensityBefore)}</p>
-          </Card>
-        )}
-        <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckOut} showIntensity intensity={intensityAfter} onIntensityChange={setIntensityAfter} />
-        {moodAfter && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-4 text-center">
-            <Card variant="bordered" padding="md" className="bg-purple-50 border-purple-200">
-              <Lumi mood="happy" size="lg" />
-              <p className="text-lg font-extrabold text-text-primary mt-1">Gracias por venir al rincón de calma</p>
-              <p className="text-xs text-text-muted mt-1">Siempre estoy aquí cuando me necesites</p>
-            </Card>
-            <div className="flex gap-2 mt-3 justify-center">
-              <Button variant="outline" size="sm" onClick={handleRestart}>🔄 Otra vez</Button>
-              <Button variant="primary" size="sm" onClick={() => window.history.back()}>Listo</Button>
+      <div className="flex flex-col gap-4 pb-8">
+        <StepWrapper>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <h1 className="heading-page">¿Cómo te sientes ahora?</h1>
+              <p className="text-body">Compara cómo estabas antes de la actividad</p>
             </div>
-          </motion.div>
-        )}
+          </div>
+          {moodBefore && (
+            <Card variant="default" padding="sm" className="text-center mb-3">
+              <p className="text-xs text-text-muted">Antes: {before?.emoji} {before?.label}{'⚡'.repeat(intensityBefore)}</p>
+            </Card>
+          )}
+          <EmotionGrid emotions={EMOTIONS} onSelect={handleCheckOut} showIntensity intensity={intensityAfter} onIntensityChange={setIntensityAfter} />
+          {moodAfter && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-4 text-center">
+              <Card variant="bordered" padding="md" className="bg-purple-50 border-purple-200">
+                <Lumi mood="happy" size="lg" />
+                <p className="text-lg font-extrabold text-text-primary mt-1">Gracias por venir al rincón de calma</p>
+                <p className="text-xs text-text-muted mt-1">Siempre estoy aquí cuando me necesites</p>
+              </Card>
+              <div className="flex gap-2 mt-3 justify-center">
+                <Button variant="outline" size="sm" onClick={handleRestart}>🔄 Otra vez</Button>
+                <Button variant="primary" size="sm" onClick={() => window.history.back()}>Listo</Button>
+              </div>
+            </motion.div>
+          )}
+        </StepWrapper>
       </div>
     )
   }

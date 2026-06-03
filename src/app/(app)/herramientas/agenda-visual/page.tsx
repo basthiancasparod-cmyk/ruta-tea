@@ -527,7 +527,6 @@ function TaskCard({
 
   const handleToggle = () => {
     if (!isDone && cardRef.current) {
-      const rect = cardRef.current.getBoundingClientRect()
       setShowConfetti(true)
       setTimeout(() => setShowConfetti(false), 1000)
     }
@@ -577,11 +576,11 @@ function TaskCard({
             {task.label}
           </p>
           <div className="flex items-center gap-1 mt-0.5">
-            <span className={`text-[10px] font-semibold ${meta.color}`}>
+            <span className={`text-badge font-semibold ${meta.color}`}>
               {meta.emoji} {meta.label}
             </span>
             {!hasTimer && (
-              <span className="text-[10px] text-text-muted ml-1">(sin timer)</span>
+              <span className="text-badge text-text-muted ml-1">(sin timer)</span>
             )}
           </div>
 
@@ -602,7 +601,7 @@ function TaskCard({
               {status === 'finished' && (
                 <button
                   onClick={onResetTimer}
-                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-700 font-bold"
+                  className="text-badge px-1.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-700 font-bold"
                 >
                   🔄
                 </button>
@@ -710,8 +709,6 @@ export default function AgendaVisualPage() {
   const [activeCategory, setActiveCategory] = useState<TaskCategory | 'all'>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [celebrate100, setCelebrate100] = useState(false)
-  const [showRewardPicker, setShowRewardPicker] = useState(false)
-
   const timerRef = useRef<Record<string, TimerInfo>>({})
   const [timerTick, setTimerTick] = useState(0)
   const intervalsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
@@ -820,7 +817,10 @@ export default function AgendaVisualPage() {
       <div className="flex flex-col gap-4 pb-8">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
-          <h1 className="text-xl heading-page">Agenda Visual</h1>
+          <div className="flex-1">
+            <h1 className="heading-page">Agenda Visual</h1>
+            <p className="text-body">Organiza la rutina diaria con pictogramas</p>
+          </div>
         </div>
         <div className="flex flex-col gap-2">
           {[1,2,3,4].map(i => (
@@ -836,7 +836,10 @@ export default function AgendaVisualPage() {
       <div className="flex flex-col gap-4 pb-8">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
-          <h1 className="text-xl heading-page">Agenda Visual</h1>
+          <div className="flex-1">
+            <h1 className="heading-page">Agenda Visual</h1>
+            <p className="text-body">Organiza la rutina diaria con pictogramas</p>
+          </div>
         </div>
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="heading-card">
@@ -853,9 +856,12 @@ export default function AgendaVisualPage() {
     <div className="flex flex-col gap-4 pb-8">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => window.history.back()}>← Atrás</Button>
-        <h1 className="text-xl heading-page">Agenda Visual</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="heading-page">Agenda Visual</h1>
+          <p className="text-body">Organiza la rutina diaria con pictogramas</p>
+        </div>
         {agenda && (
-          <span className="text-xs bg-surface border border-border rounded-full px-2 py-0.5 text-text-muted ml-auto">
+          <span className="text-xs bg-surface border border-border rounded-full px-2 py-0.5 text-text-muted shrink-0">
             {agenda.name}
           </span>
         )}
