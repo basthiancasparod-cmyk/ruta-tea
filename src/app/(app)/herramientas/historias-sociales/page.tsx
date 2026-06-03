@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Pictogram } from '@/components/ui/Pictogram'
 import { playSound } from '@/lib/sounds'
+import { useChildren } from '@/lib/hooks/useData'
 
 type CategoryId = 'daily' | 'medical' | 'social' | 'emotions' | 'school' | 'community'
 
@@ -18,10 +19,12 @@ interface StoryPage {
 interface SocialStory {
   id: string
   title: string
+  description: string
   emoji: string
   category: CategoryId
   pages: StoryPage[]
   color: string
+  progress?: { current_page: number; is_completed: boolean; completed_at: string | null } | null
 }
 
 const CATEGORIES: Record<CategoryId, { label: string; emoji: string }> = {
@@ -31,152 +34,6 @@ const CATEGORIES: Record<CategoryId, { label: string; emoji: string }> = {
   emotions: { label: 'Emociones', emoji: '💖' },
   school: { label: 'Escuela', emoji: '📚' },
   community: { label: 'Comunidad', emoji: '🏘️' },
-}
-
-const STORIES: SocialStory[] = [
-  {
-    id: 'doctor', title: 'Ir al médico', emoji: '🩺', category: 'medical',
-    color: 'from-blue-100 to-cyan-50',
-    pages: [
-      { text: 'A veces me duele algo o necesito un chequeo.', keyword: 'medico', emoji: '🏥' },
-      { text: 'Voy a la consulta con mamá o papá.', keyword: 'consulta', emoji: '🚶' },
-      { text: 'La doctora me saluda y me pregunta cómo estoy.', keyword: 'doctor', emoji: '👋' },
-      { text: 'Puede revisar mis oídos, mi boca y mi corazón.', keyword: 'revision', emoji: '🩺' },
-      { text: 'Si necesito una vacuna, duele solo un poquito.', keyword: 'inyeccion', emoji: '💉' },
-      { text: 'Al terminar, puedo elegir una actividad favorita.', keyword: 'casa', emoji: '🎉' },
-    ],
-  },
-  {
-    id: 'dentist', title: 'Ir al dentista', emoji: '🦷', category: 'medical',
-    color: 'from-teal-100 to-emerald-50',
-    pages: [
-      { text: 'Ir al dentista ayuda a mantener mis dientes sanos.', keyword: 'dentista', emoji: '🦷' },
-      { text: 'Me siento en una silla especial que se mueve.', keyword: 'sentarse', emoji: '💺' },
-      { text: 'El dentista mira mis dientes con un espejito.', keyword: 'boca', emoji: '🔦' },
-      { text: 'A veces usan un cepillo que hace ruido, pero no duele.', keyword: 'cepillarse', emoji: '🪥' },
-      { text: 'Si puedo quedarme quieto, todo termina más rápido.', keyword: 'tranquilo', emoji: '🧘' },
-    ],
-  },
-  {
-    id: 'first-day-school', title: 'Primer día de clases', emoji: '🎒', category: 'school',
-    color: 'from-yellow-100 to-amber-50',
-    pages: [
-      { text: 'Hoy es mi primer día en la escuela.', keyword: 'escuela', emoji: '🏫' },
-      { text: 'Mamá o papá me llevan y me dicen que volverán.', keyword: 'familia', emoji: '👨‍👩‍👦' },
-      { text: 'Mi maestra me recibe con una sonrisa.', keyword: 'maestro', emoji: '👩‍🏫' },
-      { text: 'Hay otros niños en mi salón, todos están conociéndose.', keyword: 'amigos', emoji: '👋' },
-      { text: 'Vamos a jugar, cantar y aprender cosas nuevas.', keyword: 'jugar', emoji: '🧩' },
-      { text: 'Cuando termine el día, mamá o papá me recogen.', keyword: 'casa', emoji: '🤗' },
-    ],
-  },
-  {
-    id: 'bedtime', title: 'Hora de dormir', emoji: '🌙', category: 'daily',
-    color: 'from-indigo-100 to-purple-50',
-    pages: [
-      { text: 'Cuando se hace de noche, es hora de prepararme para dormir.', keyword: 'noche', emoji: '🌆' },
-      { text: 'Me pongo el pijama y lavo mis dientes.', keyword: 'pijama', emoji: '🪥' },
-      { text: 'Mamá o papá me leen un cuento en la cama.', keyword: 'leer', emoji: '📖' },
-      { text: 'Damos las buenas noches y apagamos la luz.', keyword: 'dormir', emoji: '🌙' },
-      { text: 'Cierro los ojos y respiro hondo para descansar.', keyword: 'cama', emoji: '😴' },
-    ],
-  },
-  {
-    id: 'sharing', title: 'Compartir juguetes', emoji: '🧸', category: 'social',
-    color: 'from-pink-100 to-rose-50',
-    pages: [
-      { text: 'Cuando un amigo viene a casa, podemos jugar juntos.', keyword: 'amigos', emoji: '🧸' },
-      { text: 'A veces tengo que compartir mis juguetes favoritos.', keyword: 'compartir', emoji: '🤝' },
-      { text: 'Compartir no significa perderlo, solo prestarlo un rato.', keyword: 'turno', emoji: '⏳' },
-      { text: 'Después de jugar, mi amigo me devuelve el juguete.', keyword: 'guardar', emoji: '🔄' },
-      { text: 'Compartir hace que jugar juntos sea más divertido.', keyword: 'jugar', emoji: '🎉' },
-    ],
-  },
-  {
-    id: 'waiting', title: 'Esperar mi turno', emoji: '⏳', category: 'social',
-    color: 'from-orange-100 to-amber-50',
-    pages: [
-      { text: 'A veces hay que esperar para hacer algo divertido.', keyword: 'esperar', emoji: '⏳' },
-      { text: 'Cuando otros hablan, espero a que terminen.', keyword: 'escuchar', emoji: '👂' },
-      { text: 'Si quiero algo, puedo decir "¿Puedo hacerlo después?"', keyword: 'hablar', emoji: '🗣️' },
-      { text: 'Mientras espero, puedo contar o respirar profundo.', keyword: 'tranquilo', emoji: '🧘' },
-      { text: 'Cuando llega mi turno, lo disfruto mucho más.', keyword: 'feliz', emoji: '🌟' },
-    ],
-  },
-  {
-    id: 'shopping', title: 'Ir de compras', emoji: '🛒', category: 'community',
-    color: 'from-green-100 to-teal-50',
-    pages: [
-      { text: 'A veces vamos al supermercado o a la tienda.', keyword: 'tienda', emoji: '🏪' },
-      { text: 'Hay mucha gente y muchas cosas para ver.', keyword: 'gente', emoji: '👥' },
-      { text: 'Puedo ayudar a buscar lo que necesitamos.', keyword: 'buscar', emoji: '🔍' },
-      { text: 'Espero en la fila con mamá o papá hasta pagar.', keyword: 'esperar', emoji: '🛒' },
-      { text: 'Cuando terminamos, volvemos a casa.', keyword: 'casa', emoji: '✅' },
-    ],
-  },
-  {
-    id: 'car-travel', title: 'Viajar en coche', emoji: '🚗', category: 'daily',
-    color: 'from-sky-100 to-blue-50',
-    pages: [
-      { text: 'A veces viajamos en coche a lugares nuevos.', keyword: 'coche', emoji: '🚗' },
-      { text: 'Me siento en mi silla y me pongo el cinturón.', keyword: 'sentarse', emoji: '🔒' },
-      { text: 'El viaje puede ser corto o un poco largo.', keyword: 'viaje', emoji: '🛣️' },
-      { text: 'Puedo mirar por la ventana o escuchar música.', keyword: 'ventana', emoji: '🌳' },
-      { text: 'Respirar hondo me ayuda si me siento inquieto.', keyword: 'tranquilo', emoji: '🧘' },
-      { text: 'Cuando llegamos, puedo estirar las piernas.', keyword: 'llegada', emoji: '🎉' },
-    ],
-  },
-  {
-    id: 'frustration', title: 'Manejar la frustración', emoji: '🌋', category: 'emotions',
-    color: 'from-red-100 to-orange-50',
-    pages: [
-      { text: 'A veces las cosas no salen como yo quiero.', keyword: 'triste', emoji: '😟' },
-      { text: 'Me siento frustrado y eso es normal.', keyword: 'enfadado', emoji: '😤' },
-      { text: 'Puedo respirar profundo tres veces para calmarme.', keyword: 'respirar', emoji: '🫁' },
-      { text: 'Puedo pedir ayuda a un adulto si la necesito.', keyword: 'ayuda', emoji: '🤝' },
-      { text: 'Después de calmarme, puedo intentarlo de nuevo.', keyword: 'feliz', emoji: '💪' },
-    ],
-  },
-  {
-    id: 'new-people', title: 'Conocer gente nueva', emoji: '👋', category: 'social',
-    color: 'from-purple-100 to-pink-50',
-    pages: [
-      { text: 'A veces conozco personas que no he visto antes.', keyword: 'gente', emoji: '👋' },
-      { text: 'Puedo saludar con un hola o mover la mano.', keyword: 'saludar', emoji: '🖐️' },
-      { text: 'No tengo que hablar mucho si no quiero.', keyword: 'hablar', emoji: '🤐' },
-      { text: 'Puedo quedarme cerca de mamá o papá mientras me siento cómodo.', keyword: 'familia', emoji: '👨‍👩‍👦' },
-      { text: 'Con el tiempo, conocer gente nueva es más fácil.', keyword: 'amigos', emoji: '🌟' },
-    ],
-  },
-  {
-    id: 'mealtime', title: 'La hora de comer', emoji: '🍽️', category: 'daily',
-    color: 'from-amber-100 to-yellow-50',
-    pages: [
-      { text: 'Es hora de comer y toda la familia se sienta junta.', keyword: 'comer', emoji: '🍽️' },
-      { text: 'Hay diferentes alimentos en la mesa.', keyword: 'fruta', emoji: '🥗' },
-      { text: 'Puedo probar un poco de cada cosa.', keyword: 'comida', emoji: '👅' },
-      { text: 'Si algo no me gusta, está bien dejarlo en el plato.', keyword: 'no', emoji: '👍' },
-      { text: 'Cuando termino, ayudo a recoger mi plato.', keyword: 'recoger', emoji: '✅' },
-    ],
-  },
-  {
-    id: 'potty', title: 'Ir al baño', emoji: '🚽', category: 'daily',
-    color: 'from-cyan-100 to-blue-50',
-    pages: [
-      { text: 'Cuando siento que necesito ir al baño, aviso a un adulto.', keyword: 'bano', emoji: '🚽' },
-      { text: 'Voy al baño y me siento en la taza.', keyword: 'sentarse', emoji: '🚽' },
-      { text: 'Hago lo que necesito y luego me limpio.', keyword: 'agua', emoji: '🧻' },
-      { text: 'Me lavo las manos con agua y jabón.', keyword: 'lavarse', emoji: '🧼' },
-      { text: '¡Lo logré! Cada vez es más fácil.', keyword: 'feliz', emoji: '🌟' },
-    ],
-  },
-]
-
-const HISTORY_KEY = 'historias-sociales-history'
-
-interface ReadingRecord {
-  storyId: string
-  date: string
-  completed: boolean
 }
 
 const CONFETTI_COLORS = ['#44B39D', '#FFB347', '#6BCB77', '#8B5CF6', '#FF6B6B', '#FFC800', '#FF6B00']
@@ -206,44 +63,76 @@ function ConfettiBurst() {
 }
 
 export default function HistoriasSocialesPage() {
+  const { children, loading: childrenLoading } = useChildren()
+  const child = children[0]
+  const [stories, setStories] = useState<SocialStory[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedStory, setSelectedStory] = useState<SocialStory | null>(null)
   const [pageIndex, setPageIndex] = useState(0)
   const [activeCategory, setActiveCategory] = useState<CategoryId | 'all'>('all')
   const [showConfetti, setShowConfetti] = useState(false)
-  const [history, setHistory] = useState<ReadingRecord[]>([])
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [ttsEnabled, setTtsEnabled] = useState(true)
   const [showCompletion, setShowCompletion] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [listPage, setListPage] = useState(1)
+  const confettiTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HISTORY_KEY)
-      if (raw) setHistory(JSON.parse(raw))
-    } catch { /* empty */ }
+    return () => { if (confettiTimer.current) clearTimeout(confettiTimer.current) }
   }, [])
 
-  const saveHistory = useCallback((record: ReadingRecord) => {
-    setHistory(prev => {
-      const updated = [record, ...prev.filter(r => r.storyId !== record.storyId)].slice(0, 100)
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)) } catch { /* empty */ }
-      return updated
-    })
-  }, [])
+  useEffect(() => {
+    if (!child?.id || childrenLoading) return
+    setLoading(true)
+    fetch(`/api/historias-sociales?childId=${child.id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.stories) setStories(data.stories)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [child?.id, childrenLoading])
+
+  const markCompleted = useCallback(async (storyId: string) => {
+    if (!child?.id) return
+    try {
+      await fetch('/api/historias-sociales/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storyId, childId: child.id }),
+      })
+      setStories(prev => prev.map(s =>
+        s.id === storyId ? { ...s, progress: { current_page: 0, is_completed: true, completed_at: new Date().toISOString() } } : s
+      ))
+    } catch { /* empty */ }
+  }, [child?.id])
 
   const sortedStories = useMemo(() => {
-    const readIds = new Set(history.filter(r => r.completed).map(r => r.storyId))
-    return [...STORIES].sort((a, b) => {
-      const aRead = readIds.has(a.id) ? 1 : 0
-      const bRead = readIds.has(b.id) ? 1 : 0
+    return [...stories].sort((a, b) => {
+      const aRead = a.progress?.is_completed ? 1 : 0
+      const bRead = b.progress?.is_completed ? 1 : 0
       return aRead - bRead
     })
-  }, [history])
+  }, [stories])
 
-  const filteredStories = activeCategory === 'all'
-    ? sortedStories
-    : sortedStories.filter(s => s.category === activeCategory)
+  const filteredStories = useMemo(() => {
+    const byCategory = activeCategory === 'all'
+      ? sortedStories
+      : sortedStories.filter(s => s.category === activeCategory)
+    if (!searchQuery.trim()) return byCategory
+    const q = searchQuery.toLowerCase()
+    return byCategory.filter(s => s.title.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
+  }, [sortedStories, activeCategory, searchQuery])
 
-  const completedCount = history.filter(r => r.completed).length
+  const listTotalPages = Math.max(1, Math.ceil(filteredStories.length / ITEMS_PER_PAGE))
+  const safePage = Math.min(listPage, listTotalPages)
+  const pageStories = filteredStories.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+
+  useEffect(() => { setListPage(1) }, [activeCategory, searchQuery])
+
+  const completedCount = stories.filter(s => s.progress?.is_completed).length
 
   const ps = useCallback((name: 'click' | 'celebration' | 'correct') => {
     if (soundEnabled) playSound(name)
@@ -277,10 +166,10 @@ export default function HistoriasSocialesPage() {
       setShowCompletion(true)
       ps('celebration')
       setShowConfetti(true)
-      setTimeout(() => setShowConfetti(false), 2500)
-      saveHistory({ storyId: selectedStory.id, date: new Date().toISOString(), completed: true })
+      confettiTimer.current = setTimeout(() => setShowConfetti(false), 2500)
+      markCompleted(selectedStory.id)
     }
-  }, [selectedStory, pageIndex, ps, saveHistory])
+  }, [selectedStory, pageIndex, ps, markCompleted])
 
   const goPrevPage = useCallback(() => {
     if (pageIndex > 0) {
@@ -338,7 +227,7 @@ export default function HistoriasSocialesPage() {
               className={`text-sm shrink-0 transition-opacity ${ttsEnabled ? 'opacity-80' : 'opacity-40'}`}
               title={ttsEnabled ? 'Desactivar voz' : 'Activar voz'}
               aria-label={ttsEnabled ? 'Desactivar lectura en voz alta' : 'Activar lectura en voz alta'}
-            >{ttsEnabled ? '🔊' : '🔇'}</button>
+            >{ttsEnabled ? '🗣️' : '🔇'}</button>
           </div>
         </div>
 
@@ -449,7 +338,7 @@ export default function HistoriasSocialesPage() {
           <div className="flex items-center gap-2 justify-center">
             <span className="text-lg">🏆</span>
             <span className="text-sm font-extrabold text-text-primary">{completedCount} historias leídas</span>
-            <span className="text-xs text-text-muted">· {history.filter(r => r.completed).length}/{STORIES.length}</span>
+            <span className="text-xs text-text-muted">· {completedCount}/{stories.length}</span>
           </div>
         </Card>
       )}
@@ -459,9 +348,9 @@ export default function HistoriasSocialesPage() {
           className={`shrink-0 px-4 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap ${
             activeCategory === 'all' ? 'bg-brand text-white shadow-sm' : 'bg-surface border border-border text-text-secondary hover:border-brand hover:text-brand'
           }`}
-        >Todas ({STORIES.length})</button>
+        >Todas <span className="font-normal opacity-70">({stories.length})</span></button>
         {(Object.entries(CATEGORIES) as [CategoryId, { label: string; emoji: string }][]).map(([id, cat]) => {
-          const count = STORIES.filter(s => s.category === id).length
+          const count = stories.filter(s => s.category === id).length
           return (
             <button key={id} onClick={() => setActiveCategory(id)}
               className={`shrink-0 px-4 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap ${
@@ -472,10 +361,17 @@ export default function HistoriasSocialesPage() {
         })}
       </div>
 
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg opacity-50">🔍</span>
+        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Buscar historias..."
+          className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-border bg-white text-sm font-semibold text-text-primary placeholder:text-text-muted outline-none focus:border-brand transition-colors"
+        />
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <AnimatePresence mode="popLayout">
-          {filteredStories.map(story => {
-            const read = history.find(r => r.storyId === story.id)
+          {pageStories.map(story => {
             return (
               <motion.div key={story.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
@@ -487,7 +383,7 @@ export default function HistoriasSocialesPage() {
                   <Card variant="default" padding="md"
                     className={`h-full bg-gradient-to-br ${story.color} border-2 border-transparent hover:border-brand transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden`}
                   >
-                    {read && (
+                    {story.progress?.is_completed && (
                       <span className="absolute top-2 right-2 text-xs text-brand font-bold">✅ Leída</span>
                     )}
                     <div className="flex items-center gap-4">
@@ -505,10 +401,53 @@ export default function HistoriasSocialesPage() {
         </AnimatePresence>
       </div>
 
-      {filteredStories.length === 0 && (
+      {loading && (
+        <div className="text-center py-10">
+          <span className="text-4xl block mb-2">⏳</span>
+          <p className="heading-card text-text-muted">Cargando historias...</p>
+        </div>
+      )}
+      {!loading && filteredStories.length === 0 && (
         <div className="text-center py-10">
           <span className="text-4xl block mb-2">📖</span>
-          <p className="heading-card text-text-muted">No hay historias en esta categoría</p>
+          <p className="heading-card text-text-muted">{searchQuery ? 'No hay historias que coincidan con tu búsqueda' : 'No hay historias en esta categoría'}</p>
+        </div>
+      )}
+
+      {!loading && filteredStories.length > ITEMS_PER_PAGE && (
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setListPage(p => Math.max(1, p - 1))} disabled={safePage === 1}
+              className="flex items-center justify-center w-9 h-9 rounded-lg border border-border text-sm font-bold hover:border-brand hover:text-brand transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Página anterior">◀</button>
+            {(() => {
+              const pages: (number | string)[] = []
+              const total = listTotalPages
+              const cur = safePage
+              pages.push(1)
+              if (cur > 3) pages.push('...')
+              const start = Math.max(2, cur - 1)
+              const end = Math.min(total - 1, cur + 1)
+              for (let i = start; i <= end; i++) pages.push(i)
+              if (cur < total - 2) pages.push('...')
+              if (total > 1) pages.push(total)
+              return pages.map((p, i) =>
+                p === '...' ? (
+                  <span key={`e${i}`} className="w-4 text-center text-text-muted text-xs">···</span>
+                ) : (
+                  <button key={p} onClick={() => setListPage(p as number)}
+                    className={`flex items-center justify-center w-9 h-9 rounded-lg text-xs font-bold transition-all ${
+                      p === cur ? 'bg-brand text-white shadow-sm' : 'border border-border hover:border-brand hover:text-brand'
+                    }`}
+                    aria-label={`Ir a página ${p}`}>{p}</button>
+                )
+              )
+            })()}
+            <button onClick={() => setListPage(p => Math.min(listTotalPages, p + 1))} disabled={safePage === listTotalPages}
+              className="flex items-center justify-center w-9 h-9 rounded-lg border border-border text-sm font-bold hover:border-brand hover:text-brand transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Página siguiente">▶</button>
+          </div>
+          <span className="text-xs text-text-muted">Página {safePage} de {listTotalPages}</span>
         </div>
       )}
 
