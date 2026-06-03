@@ -36,7 +36,12 @@ export function Card({
   const pad = paddingStyles[padding]
 
   return (
-    <div className={`${base} ${pad} ${className}`}>
+    <div className={`${base} ${pad} ${className}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+    >
       {isPremium && (
         <>
           <div className="absolute inset-0 pointer-events-none rounded-2xl"
