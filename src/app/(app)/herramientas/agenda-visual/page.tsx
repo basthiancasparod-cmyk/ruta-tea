@@ -24,27 +24,31 @@ const TIMER_CUSTOM = -1
 
 function ClockPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const ref = useRef<HTMLDivElement>(null)
-  const S = 240, CX = S / 2, CY = S / 2, OUTER = 95, INNER = 80
+  const [mode, setMode] = useState<'minutes' | 'hours'>('minutes')
+  const S = 240, CX = S / 2, CY = S / 2
+  const HOURS_OUTER = 88, HOURS_INNER = 66
+  const MIN_R = 88, MIN_INNER = 72
 
-  const minuteToPos = (m: number, r: number) => {
-    const a = ((m / 60) * 360 - 90) * (Math.PI / 180)
-    return { x: CX + Math.cos(a) * r, y: CY + Math.sin(a) * r }
+  const hours = Math.floor(value / 60)
+  const minutes = value % 60
+
+  const setHours = (h: number) => onChange(Math.max(0, Math.min(23, h)) * 60 + minutes)
+  const setMinutes = (m: number) => onChange(Math.max(0, Math.min(59, m)) + hours * 60)
+
+  const polarToPos = (n: number, total: number, radius: number) => {
+    const a = ((n / total) * 360 - 90) * (Math.PI / 180)
+    return { x: CX + Math.cos(a) * radius, y: CY + Math.sin(a) * radius }
   }
 
-  const posToMinute = (px: number, py: number) => {
+  const posToValue = (px: number, py: number, total: number) => {
     const rect = ref.current?.getBoundingClientRect()
-    if (!rect) return value
+    if (!rect) return mode === 'minutes' ? minutes : hours
     const dx = px - rect.left - CX, dy = py - rect.top - CY
     const dist = Math.sqrt(dx * dx + dy * dy)
-    if (dist < 20) return value
-    let deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90
+    if (dist < 25) return mode === 'minutes' ? minutes : hours
+    let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90
     if (deg < 0) deg += 360
-    return Math.round((deg / 360) * 60) % 60
-  }
-
-  const handlePointer = (e: React.PointerEvent) => {
-    const m = posToMinute(e.clientX, e.clientY)
-    onChange(Math.max(1, m))
+    return Math.round((deg / 360) * total) % total
   }
 
   const [dragging, setDragging] = useState(false)
@@ -52,110 +56,162 @@ function ClockPicker({ value, onChange }: { value: number; onChange: (v: number)
   const onPointerDown = (e: React.PointerEvent) => {
     e.preventDefault()
     setDragging(true)
-    handlePointer(e)
+    const rect = ref.current?.getBoundingClientRect()
+    if (!rect) return
+    const dx = e.clientX - rect.left - CX, dy = e.clientY - rect.top - CY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (mode === 'minutes') {
+      setMinutes(Math.max(1, posToValue(e.clientX, e.clientY, 60)))
+    } else {
+      const outerDist = Math.abs(dist - ((HOURS_OUTER + HOURS_INNER) / 2))
+      const h = posToValue(e.clientX, e.clientY, 24)
+      // If closer to outer ring, use even hours mapping; inner for odd
+      let finalH = h
+      if (dist > (HOURS_OUTER + HOURS_INNER) / 2) {
+        // outer ring: even hours 0,2,4,...,22
+        finalH = Math.round(h / 2) * 2 % 24
+      } else {
+        // inner ring: odd hours 1,3,5,...,23
+        finalH = (Math.round(h / 2) * 2 + 1) % 24
+      }
+      setHours(finalH)
+    }
   }
 
   useEffect(() => {
     if (!dragging) return
     const onMove = (e: PointerEvent) => {
-      const m = posToMinute(e.clientX, e.clientY)
-      onChange(Math.max(1, m))
+      if (mode === 'minutes') {
+        setMinutes(Math.max(1, posToValue(e.clientX, e.clientY, 60)))
+      } else {
+        const rect = ref.current?.getBoundingClientRect()
+        if (!rect) return
+        const dx = e.clientX - rect.left - CX, dy = e.clientY - rect.top - CY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const h = posToValue(e.clientX, e.clientY, 24)
+        const finalH = dist > (HOURS_OUTER + HOURS_INNER) / 2
+          ? Math.round(h / 2) * 2 % 24
+          : (Math.round(h / 2) * 2 + 1) % 24
+        setHours(finalH)
+      }
     }
     const onUp = () => setDragging(false)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
-  }, [dragging, value, onChange])
+  }, [dragging, mode, hours, minutes, setHours, setMinutes])
 
-  const majorMarks = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+  const minuteMarks = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+  const outerHours = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+  const innerHours = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Digital display */}
-      <div className="flex items-baseline gap-1">
-        <span className="text-5xl font-extrabold text-text-primary tabular-nums">{value}</span>
-        <span className="text-sm font-bold text-text-muted">min</span>
+      {/* Digital display — tap to switch mode */}
+      <div className="flex items-baseline gap-1 bg-surface-secondary rounded-xl px-4 py-2">
+        <button onClick={() => setMode('hours')}
+          className={`text-3xl font-extrabold tabular-nums px-2 py-1 rounded-lg transition-all ${mode === 'hours' ? 'bg-brand text-white' : 'text-text-primary hover:bg-white/50'}`}>
+          {hours.toString().padStart(2, '0')}
+        </button>
+        <span className="text-2xl font-bold text-text-muted">:</span>
+        <button onClick={() => setMode('minutes')}
+          className={`text-3xl font-extrabold tabular-nums px-2 py-1 rounded-lg transition-all ${mode === 'minutes' ? 'bg-brand text-white' : 'text-text-primary hover:bg-white/50'}`}>
+          {minutes.toString().padStart(2, '0')}
+        </button>
       </div>
 
       {/* Clock face */}
-      <div
-        ref={ref}
-        className="relative select-none touch-none"
-        style={{ width: S, height: S }}
-        onPointerDown={onPointerDown}
-      >
+      <div ref={ref} className="relative select-none touch-none" style={{ width: S, height: S }} onPointerDown={onPointerDown}>
         <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} className="absolute inset-0 pointer-events-none">
-          {/* Clock background */}
-          <circle cx={CX} cy={CY} r={OUTER + 6} fill="#f1f5f9" />
-          <circle cx={CX} cy={CY} r={OUTER} fill="white" stroke="#e2e8f0" strokeWidth="1" />
+          {/* Background */}
+          <circle cx={CX} cy={CY} r={94} fill="#f1f5f9" />
+          <circle cx={CX} cy={CY} r={91} fill="white" stroke="#e2e8f0" strokeWidth="1" />
 
-          {/* Selected number highlight (behind text) */}
-          {(() => {
-            const sel = majorMarks.find(m => m === value)
-            if (sel === undefined) return null
-            const pos = minuteToPos(sel, INNER)
-            return <circle cx={pos.x} cy={pos.y} r={14} fill="var(--color-brand, #44B39D)" />
-          })()}
+          {mode === 'minutes' && <>
+            {/* Highlight */}
+            {minuteMarks.filter(m => m === minutes).map(m => {
+              const p = polarToPos(m, 60, MIN_INNER)
+              return <circle key={`hl-${m}`} cx={p.x} cy={p.y} r={14} fill="var(--color-brand, #44B39D)" />
+            })}
 
-          {/* Hand */}
-          {(() => {
-            const tip = minuteToPos(value, OUTER - 14)
-            const reverse = minuteToPos(value + 30, 22)
-            return (
-              <g>
+            {/* Hand */}
+            {(() => {
+              const tip = polarToPos(minutes, 60, MIN_R - 12)
+              const rev = polarToPos(minutes + 30, 60, 20)
+              return <g>
                 <line x1={CX} y1={CY} x2={tip.x} y2={tip.y} stroke="var(--color-brand, #44B39D)" strokeWidth="3" strokeLinecap="round" />
-                <line x1={reverse.x} y1={reverse.y} x2={CX} y2={CY} stroke="var(--color-brand, #44B39D)" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+                <line x1={rev.x} y1={rev.y} x2={CX} y2={CY} stroke="var(--color-brand, #44B39D)" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
               </g>
-            )
-          })()}
+            })()}
 
-          {/* Minute dots */}
-          {Array.from({ length: 60 }, (_, m) =>
-            m % 5 !== 0 ? (
-              <circle key={m} cx={minuteToPos(m, OUTER - 10).x} cy={minuteToPos(m, OUTER - 10).y} r={2} fill="#94a3b8" />
-            ) : null
-          )}
+            {/* Dots */}
+            {Array.from({ length: 60 }, (_, m) => m % 5 !== 0 && (
+              <circle key={`d-${m}`} cx={polarToPos(m, 60, MIN_R - 8).x} cy={polarToPos(m, 60, MIN_R - 8).y} r={2} fill="#94a3b8" />
+            ))}
 
-          {/* Number texts (on top of everything) */}
-          {majorMarks.map(m => {
-            const pos = minuteToPos(m, INNER)
-            return (
-              <text
-                key={m}
-                x={pos.x} y={pos.y}
-                textAnchor="middle" dominantBaseline="central"
-                className={`text-sm font-bold ${value === m ? 'fill-white' : 'fill-text-primary'}`}
-                style={{ pointerEvents: 'none' }}
-              >
-                {m}
-              </text>
-            )
-          })}
+            {/* Numbers */}
+            {minuteMarks.map(m => {
+              const p = polarToPos(m, 60, MIN_INNER)
+              return <text key={`n-${m}`} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central"
+                className={`text-sm font-bold ${minutes === m ? 'fill-white' : 'fill-text-primary'}`}>{m}</text>
+            })}
+          </>}
 
-          {/* Center dot + ring */}
+          {mode === 'hours' && <>
+            {/* Outer ring highlight */}
+            {outerHours.filter(h => h === hours).map(h => {
+              const p = polarToPos(h / 2, 12, HOURS_OUTER)
+              return <circle key={`hl-${h}`} cx={p.x} cy={p.y} r={14} fill="var(--color-brand, #44B39D)" />
+            })}
+
+            {/* Inner ring highlight */}
+            {innerHours.filter(h => h === hours).map(h => {
+              const p = polarToPos((h - 1) / 2, 12, HOURS_INNER)
+              return <circle key={`hl-${h}`} cx={p.x} cy={p.y} r={12} fill="var(--color-brand, #44B39D)" />
+            })}
+
+            {/* Hand */}
+            {(() => {
+              const isOuter = hours % 2 === 0
+              const idx = isOuter ? hours / 2 : (hours - 1) / 2
+              const r = isOuter ? HOURS_OUTER : HOURS_INNER
+              const tip = polarToPos(idx, 12, r - 10)
+              const rev = polarToPos(idx + 6, 12, 18)
+              return <g>
+                <line x1={CX} y1={CY} x2={tip.x} y2={tip.y} stroke="var(--color-brand, #44B39D)" strokeWidth="3" strokeLinecap="round" />
+                <line x1={rev.x} y1={rev.y} x2={CX} y2={CY} stroke="var(--color-brand, #44B39D)" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+              </g>
+            })()}
+
+            {/* Outer ring numbers (even hours 0,2,4,...,22) */}
+            {outerHours.map((h, i) => {
+              const p = polarToPos(i, 12, HOURS_OUTER)
+              return <text key={`oh-${h}`} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central"
+                className={`text-sm font-bold ${hours === h ? 'fill-white' : 'fill-text-primary'}`}>{h}</text>
+            })}
+
+            {/* Inner ring numbers (odd hours 1,3,5,...,23) */}
+            {innerHours.map((h, i) => {
+              const p = polarToPos(i, 12, HOURS_INNER)
+              return <text key={`ih-${h}`} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central"
+                className={`text-xs font-bold ${hours === h ? 'fill-white' : 'fill-text-muted'}`}>{h}</text>
+            })}
+          </>}
+
+          {/* Center */}
           <circle cx={CX} cy={CY} r={5} fill="white" stroke="var(--color-brand, #44B39D)" strokeWidth="2.5" />
           <circle cx={CX} cy={CY} r={2.5} fill="var(--color-brand, #44B39D)" />
         </svg>
-
-        {/* Pointer overlay for drag */}
         <div className="absolute inset-0 rounded-full" style={{ touchAction: 'none' }} />
       </div>
 
       {/* Fine-tune buttons */}
       <div className="flex items-center gap-4">
-        <button
-          onClick={() => onChange(Math.max(1, value - 1))}
-          className="w-10 h-10 rounded-full bg-white border-2 border-border text-text-secondary font-bold text-xl hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center shadow-sm"
-        >
-          −
-        </button>
-        <span className="text-xs font-bold text-text-muted">Ajuste fino</span>
-        <button
-          onClick={() => onChange(Math.min(59, value + 1))}
-          className="w-10 h-10 rounded-full bg-white border-2 border-border text-text-secondary font-bold text-xl hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center shadow-sm"
-        >
-          +
-        </button>
+        <button onClick={() => mode === 'hours' ? setHours(hours - 1) : setMinutes(Math.max(1, minutes - 1))}
+          className="w-10 h-10 rounded-full bg-white border-2 border-border text-text-secondary font-bold text-xl hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center shadow-sm">−</button>
+        <span className="text-xs font-bold text-text-muted">{mode === 'hours' ? 'Hora' : 'Minuto'}</span>
+        <button onClick={() => mode === 'hours' ? setHours(hours + 1) : setMinutes(Math.min(59, minutes + 1))}
+          className="w-10 h-10 rounded-full bg-white border-2 border-border text-text-secondary font-bold text-xl hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center shadow-sm">+</button>
       </div>
     </div>
   )
