@@ -29,9 +29,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.includes("/herramientas/tablero-caa/quick") ||
     pathname.includes("/herramientas/tablero-caa/tablero")
 
-  if (isBoard || hideChrome) {
+  if (isBoard) {
     return (
       <main className="w-full h-screen overflow-hidden bg-surface">
+        {children}
+      </main>
+    )
+  }
+
+  if (hideChrome) {
+    return (
+      <main className="w-full h-screen overflow-y-auto bg-surface">
         {children}
       </main>
     )

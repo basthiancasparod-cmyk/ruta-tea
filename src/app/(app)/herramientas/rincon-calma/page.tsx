@@ -6,6 +6,16 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { playSound } from '@/lib/sounds'
 
+function speakText(text: string) {
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-ES'
+    u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
 type Emotion = 'happy' | 'sad' | 'angry' | 'scared' | 'tired' | 'nervous'
 type EnergyLevel = 'high' | 'medium' | 'low'
 type BreathPattern = 'box' | 'relaxing' | 'sigh' | 'extended'
@@ -144,7 +154,7 @@ function EmotionGrid({ emotions, onSelect, selected, intensity, onIntensityChang
   )
 }
 
-function BreathCircle({ config, onDone }: { config: BreathConfig; onDone: () => void }) {
+function BreathCircle({ config, onDone, speak }: { config: BreathConfig; onDone: () => void; speak?: (text: string) => void }) {
   const [phaseIdx, setPhaseIdx] = useState(0)
   const [cycles, setCycles] = useState(0)
   const phases = config.phases
@@ -158,6 +168,10 @@ function BreathCircle({ config, onDone }: { config: BreathConfig; onDone: () => 
     }, current.duration)
     return () => clearTimeout(t)
   }, [phaseIdx, current.duration, phases.length])
+
+  useEffect(() => {
+    speak?.(current.label)
+  }, [phaseIdx])
 
   const prevPhaseIdx = phaseIdx === 0 ? phases.length - 1 : phaseIdx - 1
   const prevKey = phases[prevPhaseIdx].key
@@ -473,7 +487,7 @@ function EnhancedSoundPlayer({ onDone, soundEnabled }: { onDone: () => void; sou
   )
 }
 
-function EmergencyCalm({ onDone }: { onDone: () => void }) {
+function EmergencyCalm({ onDone, speak }: { onDone: () => void; speak?: (text: string) => void }) {
   const [phase, setPhase] = useState<'breath' | 'ground' | 'done'>('breath')
   const [breathPhase, setBreathPhase] = useState(0)
   const [tapCount, setTapCount] = useState(0)
@@ -486,6 +500,10 @@ function EmergencyCalm({ onDone }: { onDone: () => void }) {
       else setBreathPhase(next)
     }, 3000)
     return () => clearTimeout(t)
+  }, [phase, breathPhase])
+
+  useEffect(() => {
+    if (phase === 'breath') speak?.(breathLabels[breathPhase])
   }, [phase, breathPhase])
 
   const handleTap = () => {
@@ -686,6 +704,18 @@ function SoundToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => 
   )
 }
 
+function VoiceToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle}
+      className="text-lg shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+      title={enabled ? 'Silenciar voz' : 'Activar voz'}
+      aria-label={enabled ? 'Silenciar voz' : 'Activar voz'}
+    >
+      {enabled ? '🗣️' : '🚫'}
+    </button>
+  )
+}
+
 function StepWrapper({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <motion.div
@@ -713,6 +743,7 @@ export default function RinconCalmaPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [showEmergencyConfirm, setShowEmergencyConfirm] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [ttsEnabled, setTtsEnabled] = useState(true)
   const [showConfetti, setShowConfetti] = useState(false)
 
   useEffect(() => {
@@ -755,6 +786,10 @@ export default function RinconCalmaPage() {
     setMoodBefore(emotion)
     setStep('home')
     ps('click')
+    if (ttsEnabled) {
+      const label = EMOTIONS.find(e => e.id === emotion)?.label ?? ''
+      speakText(`Te sientes ${label.toLowerCase()}`)
+    }
   }
 
   const handleActivityDone = () => setStep('check-out')
@@ -765,6 +800,7 @@ export default function RinconCalmaPage() {
     setShowConfetti(true)
     setTimeout(() => setShowConfetti(false), 2500)
     ps('celebration')
+    if (ttsEnabled) speakText('Gracias por venir al rincón de calma')
   }
 
   const handleRestart = () => {
@@ -798,6 +834,7 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">Rincón de Calma</h1>
                   <p className="text-body">Un espacio seguro para aprender a autorregularse</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
                 {sessions.length > 0 && (
                   <Button variant="ghost" size="sm" onClick={() => setShowHistory(true)}>Historial</Button>
@@ -837,6 +874,7 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">Rincón de Calma</h1>
                   <p className="text-body">Elije lo que necesitas ahora</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
                 <button onClick={() => setShowEmergencyConfirm(true)} className="text-2xl shrink-0" title="Ayuda rápida" aria-label="Ayuda rápida de emergencia">🆘</button>
               </div>
@@ -951,10 +989,11 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">Respirar</h1>
                   <p className="text-body">Sigue el ritmo de tu respiración</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
               <Card variant="bordered" padding="lg" className="w-full max-w-sm mx-auto">
-                <BreathCircle config={config} onDone={handleActivityDone} />
+                <BreathCircle config={config} onDone={handleActivityDone} speak={ttsEnabled ? speakText : undefined} />
               </Card>
             </StepWrapper>
           </div>
@@ -971,6 +1010,7 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">Anclaje 5-4-3-2-1</h1>
                   <p className="text-body">Conecta con tus sentidos</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
               <GroundingExercise onDone={handleActivityDone} soundEnabled={soundEnabled} />
@@ -988,6 +1028,7 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">Burbujas</h1>
                   <p className="text-body">Explota las burbujas para calmarte</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
               <BubblePop onDone={handleActivityDone} soundEnabled={soundEnabled} />
@@ -1005,6 +1046,7 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">Sonidos</h1>
                   <p className="text-body">Elige tu ambiente sonoro</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
               <EnhancedSoundPlayer onDone={handleActivityDone} soundEnabled={soundEnabled} />
@@ -1022,9 +1064,10 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">Ayuda rápida</h1>
                   <p className="text-body">Un momento para calmarte</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
-              <EmergencyCalm onDone={handleActivityDone} />
+              <EmergencyCalm onDone={handleActivityDone} speak={ttsEnabled ? speakText : undefined} />
             </StepWrapper>
           </div>
         )
@@ -1039,6 +1082,7 @@ export default function RinconCalmaPage() {
                   <h1 className="heading-page">¿Cómo te sientes ahora?</h1>
                   <p className="text-body">Compara cómo estabas antes de la actividad</p>
                 </div>
+                <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
               {moodBefore && (

@@ -9,6 +9,16 @@ import { useChildren } from '@/lib/hooks/useData'
 import { playSound } from '@/lib/sounds'
 import type { FirstThenBoard, FirstThenSession } from '@/types'
 
+function speakText(text: string) {
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-ES'
+    u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
 const EMOJI_OPTIONS = [
   '📋', '✏️', '📚', '🎒', '🧹', '🛁', '🪥', '👕', '🥣', '🍎',
   '🧩', '🎮', '📱', '🎨', '🚗', '🏀', '🎵', '📺', '🏰', '🦕',
@@ -57,6 +67,7 @@ function PrimeroDespuesPage() {
   const [showTemplatesModal, setShowTemplatesModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [ttsEnabled, setTtsEnabled] = useState(true)
   const [showConfetti, setShowConfetti] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -162,12 +173,14 @@ function PrimeroDespuesPage() {
       tickRef.current = requestAnimationFrame(tick)
     }
     setPhase('first')
+    if (ttsEnabled) speakText(`Primero ${activeBoard.first_label}`)
   }
 
   const completeFirst = () => {
     cancelAnimationFrame(tickRef.current)
     setFirstRemaining(0)
     setPhase('then')
+    if (ttsEnabled) speakText(`¡Muy bien! Ahora ${activeBoard?.then_label ?? 'la recompensa'}`)
     if (activeBoard?.then_minutes && activeBoard.then_minutes > 0) {
       const secs = activeBoard.then_minutes * 60
       thenRemainingRef.current = secs
@@ -183,6 +196,7 @@ function PrimeroDespuesPage() {
     setPhase('completed')
     setShowConfetti(true)
     if (soundEnabled) playSound('celebration')
+    if (ttsEnabled) speakText('¡Buen trabajo!')
     setTimeout(() => setShowConfetti(false), 3000)
     if (activeBoard && child?.id) {
       fetch('/api/primero-despues/sessions', {
@@ -396,6 +410,9 @@ function PrimeroDespuesPage() {
           <button onClick={() => setSoundEnabled(!soundEnabled)}
             className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100"
             title={soundEnabled ? 'Silenciar' : 'Activar sonido'}>{soundEnabled ? '🔊' : '🔇'}</button>
+          <button onClick={() => setTtsEnabled(!ttsEnabled)}
+            className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100"
+            title={ttsEnabled ? 'Silenciar voz' : 'Activar voz'}>{ttsEnabled ? '🗣️' : '🚫'}</button>
           <button onClick={toggleFullscreen}
             className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 text-base transition-all ${fullscreen ? 'border-brand bg-brand/10 text-brand' : 'border-border opacity-60 hover:opacity-100 hover:border-brand'}`}
             title={fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}>⛶</button>
