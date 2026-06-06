@@ -23,60 +23,139 @@ const TIMER_PRESETS = [0, 1, 2, 3, 5, 10, 15, 30, 60, -1] as const
 const TIMER_CUSTOM = -1
 
 function ClockPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const marks = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
-  const r = 78
+  const ref = useRef<HTMLDivElement>(null)
+  const S = 240, CX = S / 2, CY = S / 2, OUTER = 95, INNER = 80
+
+  const minuteToPos = (m: number, r: number) => {
+    const a = ((m / 60) * 360 - 90) * (Math.PI / 180)
+    return { x: CX + Math.cos(a) * r, y: CY + Math.sin(a) * r }
+  }
+
+  const posToMinute = (px: number, py: number) => {
+    const rect = ref.current?.getBoundingClientRect()
+    if (!rect) return value
+    const dx = px - rect.left - CX, dy = py - rect.top - CY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < 20) return value
+    let deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90
+    if (deg < 0) deg += 360
+    return Math.round((deg / 360) * 60) % 60
+  }
+
+  const handlePointer = (e: React.PointerEvent) => {
+    const m = posToMinute(e.clientX, e.clientY)
+    onChange(Math.max(1, m))
+  }
+
+  const [dragging, setDragging] = useState(false)
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault()
+    setDragging(true)
+    handlePointer(e)
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: PointerEvent) => {
+      const m = posToMinute(e.clientX, e.clientY)
+      onChange(Math.max(1, m))
+    }
+    const onUp = () => setDragging(false)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
+  }, [dragging, value, onChange])
+
+  const majorMarks = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
 
   return (
-    <div className="relative w-[220px] h-[220px] mx-auto">
-      {/* Center display */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="text-4xl font-extrabold text-brand tabular-nums">{value}</span>
-        <span className="text-sm font-bold text-text-muted ml-1">min</span>
+    <div className="flex flex-col items-center gap-3">
+      {/* Digital display */}
+      <div className="flex items-baseline gap-1">
+        <span className="text-5xl font-extrabold text-text-primary tabular-nums">{value}</span>
+        <span className="text-sm font-bold text-text-muted">min</span>
       </div>
 
-      {/* Connecting line from center to selected mark */}
-      {value > 0 && (() => {
-        const idx = marks.indexOf(value)
-        if (idx === -1) return null
-        const angle = (idx * 30 - 90) * (Math.PI / 180)
-        const ex = 110 + Math.cos(angle) * r
-        const ey = 110 + Math.sin(angle) * r
-        return (
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 220 220">
-            <line x1="110" y1="110" x2={ex} y2={ey} stroke="var(--color-brand, #44B39D)" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        )
-      })()}
+      {/* Clock face */}
+      <div
+        ref={ref}
+        className="relative select-none touch-none"
+        style={{ width: S, height: S }}
+        onPointerDown={onPointerDown}
+      >
+        <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} className="absolute inset-0 pointer-events-none">
+          {/* Clock background */}
+          <circle cx={CX} cy={CY} r={OUTER + 6} fill="#f1f5f9" />
+          <circle cx={CX} cy={CY} r={OUTER} fill="white" stroke="#e2e8f0" strokeWidth="1" />
 
-      {marks.map((m) => {
-        const idx = marks.indexOf(m)
-        const angle = (idx * 30 - 90) * (Math.PI / 180)
-        const cx = 110 + Math.cos(angle) * r
-        const cy = 110 + Math.sin(angle) * r
-        const sel = value === m
-        return (
-          <button
-            key={m}
-            onClick={() => onChange(m || 1)}
-            className={`absolute w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all active:scale-90 ${
-              sel
-                ? 'bg-brand text-white border-brand scale-110 shadow-md'
-                : 'bg-white border-border text-text-secondary hover:border-brand hover:text-brand'
-            }`}
-            style={{ left: cx - 20, top: cy - 20 }}
-          >
-            {m}
-          </button>
-        )
-      })}
+          {/* Selected number highlight (behind text) */}
+          {(() => {
+            const sel = majorMarks.find(m => m === value)
+            if (sel === undefined) return null
+            const pos = minuteToPos(sel, INNER)
+            return <circle cx={pos.x} cy={pos.y} r={14} fill="var(--color-brand, #44B39D)" />
+          })()}
+
+          {/* Hand */}
+          {(() => {
+            const tip = minuteToPos(value, OUTER - 14)
+            const reverse = minuteToPos(value + 30, 22)
+            return (
+              <g>
+                <line x1={CX} y1={CY} x2={tip.x} y2={tip.y} stroke="var(--color-brand, #44B39D)" strokeWidth="3" strokeLinecap="round" />
+                <line x1={reverse.x} y1={reverse.y} x2={CX} y2={CY} stroke="var(--color-brand, #44B39D)" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+              </g>
+            )
+          })()}
+
+          {/* Minute dots */}
+          {Array.from({ length: 60 }, (_, m) =>
+            m % 5 !== 0 ? (
+              <circle key={m} cx={minuteToPos(m, OUTER - 10).x} cy={minuteToPos(m, OUTER - 10).y} r={2} fill="#94a3b8" />
+            ) : null
+          )}
+
+          {/* Number texts (on top of everything) */}
+          {majorMarks.map(m => {
+            const pos = minuteToPos(m, INNER)
+            return (
+              <text
+                key={m}
+                x={pos.x} y={pos.y}
+                textAnchor="middle" dominantBaseline="central"
+                className={`text-sm font-bold ${value === m ? 'fill-white' : 'fill-text-primary'}`}
+                style={{ pointerEvents: 'none' }}
+              >
+                {m}
+              </text>
+            )
+          })}
+
+          {/* Center dot + ring */}
+          <circle cx={CX} cy={CY} r={5} fill="white" stroke="var(--color-brand, #44B39D)" strokeWidth="2.5" />
+          <circle cx={CX} cy={CY} r={2.5} fill="var(--color-brand, #44B39D)" />
+        </svg>
+
+        {/* Pointer overlay for drag */}
+        <div className="absolute inset-0 rounded-full" style={{ touchAction: 'none' }} />
+      </div>
 
       {/* Fine-tune buttons */}
-      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-3">
-        <button onClick={() => onChange(Math.max(1, value - 1))}
-          className="w-8 h-8 rounded-full bg-white border border-border text-text-secondary font-bold text-lg hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center">−</button>
-        <span className="text-xs font-bold text-text-muted w-16 text-center">ajuste fino</span>
-        <button onClick={() => onChange(Math.min(59, value + 1))}
-          className="w-8 h-8 rounded-full bg-white border border-border text-text-secondary font-bold text-lg hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center">+</button>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => onChange(Math.max(1, value - 1))}
+          className="w-10 h-10 rounded-full bg-white border-2 border-border text-text-secondary font-bold text-xl hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center shadow-sm"
+        >
+          −
+        </button>
+        <span className="text-xs font-bold text-text-muted">Ajuste fino</span>
+        <button
+          onClick={() => onChange(Math.min(59, value + 1))}
+          className="w-10 h-10 rounded-full bg-white border-2 border-border text-text-secondary font-bold text-xl hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center shadow-sm"
+        >
+          +
+        </button>
       </div>
     </div>
   )
