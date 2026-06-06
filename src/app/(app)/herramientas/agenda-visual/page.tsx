@@ -19,7 +19,8 @@ const KEYWORD_SUGGESTIONS = [
   'leer','dibujar','ducharse','dormir','merendar','deberes','pasear',
 ]
 
-const TIMER_PRESETS = [0, 1, 2, 3, 5, 10, 15]
+const TIMER_PRESETS = [0, 1, 2, 3, 5, 10, 15, 30, 60, -1] as const
+const TIMER_CUSTOM = -1
 
 type TimerStatus = 'idle' | 'running' | 'paused' | 'finished'
 
@@ -119,7 +120,10 @@ function TimerConfigModal({
   onDelete: () => void
   onClose: () => void
 }) {
-  const [mins, setMins] = useState(currentSeconds > 0 ? Math.round(currentSeconds / 60) : 0)
+  const rawMins = currentSeconds > 0 ? Math.round(currentSeconds / 60) : 0
+  const isCustom = rawMins > 0 && !(TIMER_PRESETS as readonly number[]).includes(rawMins)
+  const [mins, setMins] = useState(isCustom ? TIMER_CUSTOM : rawMins)
+  const [customMins, setCustomMins] = useState(rawMins > 0 ? String(rawMins) : '')
   const [reward, setReward] = useState(currentReward ?? '')
   const [audioMode, setAudioMode] = useState<'none' | 'recorded' | 'tts'>(
     currentAudioData ? 'recorded' : currentUseTts ? 'tts' : 'none'
@@ -128,7 +132,8 @@ function TimerConfigModal({
   const [audioLabel, setAudioLabel] = useState(currentAudioLabel ?? '')
 
   const handleOk = () => {
-    onSetDuration(mins * 60)
+    const finalMins = mins === TIMER_CUSTOM ? Math.max(1, Number(customMins) || 0) : mins
+    onSetDuration(finalMins * 60)
     onSetReward(reward)
     if (audioMode === 'none') { onSetAudio(null); onSetTts(false) }
     else if (audioMode === 'recorded') { onSetAudio(recordedData); onSetTts(false); onSetAudioLabel(audioLabel) }
@@ -176,10 +181,23 @@ function TimerConfigModal({
                       : 'border-border text-text-secondary hover:border-brand hover:text-brand'
                   }`}
                 >
-                  {p === 0 ? 'Sin temporizador' : `${p} minutos`}
+                  {p === 0 ? 'Sin temporizador' : p === TIMER_CUSTOM ? 'Personalizado' : p < 60 ? `${p} minutos` : `${Math.floor(p / 60)} hora`}
                 </button>
               ))}
             </div>
+            {mins === TIMER_CUSTOM && (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={customMins}
+                  onChange={e => setCustomMins(e.target.value)}
+                  placeholder="Minutos"
+                  className="w-24 border border-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand"
+                />
+                <span className="text-xs text-text-muted">minutos</span>
+              </div>
+            )}
           </div>
 
           <div>
@@ -246,15 +264,17 @@ function AddTaskForm({
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState<TaskCategory>('morning')
   const [timerMins, setTimerMins] = useState(0)
+  const [customMins, setCustomMins] = useState('')
   const [reward, setReward] = useState('')
 
   const handleSubmit = () => {
     if (!label.trim() || !keyword.trim()) return
+    const finalMins = timerMins === TIMER_CUSTOM ? Math.max(1, Number(customMins) || 0) : timerMins
     onAdd({
       label: label.trim(),
       keyword: keyword.trim().toLowerCase(),
       category,
-      timer_seconds: timerMins * 60,
+      timer_seconds: finalMins * 60,
       reward: reward.trim(),
     })
   }
@@ -335,10 +355,23 @@ function AddTaskForm({
                   : 'border-border text-text-secondary hover:border-brand hover:text-brand'
               }`}
             >
-              {p === 0 ? 'Sin' : `${p} min`}
+              {p === 0 ? 'Sin' : p === TIMER_CUSTOM ? 'Personalizado' : p < 60 ? `${p} min` : `${Math.floor(p / 60)} h`}
             </button>
           ))}
         </div>
+        {timerMins === TIMER_CUSTOM && (
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              value={customMins}
+              onChange={e => setCustomMins(e.target.value)}
+              placeholder="Minutos"
+              className="w-20 border border-border rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-brand"
+            />
+            <span className="text-xs text-text-muted">min</span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">

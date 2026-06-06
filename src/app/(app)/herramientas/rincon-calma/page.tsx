@@ -84,7 +84,7 @@ const PETAL_COLORS = ['#a78bfa', '#34d399', '#f472b6', '#60a5fa']
 function getEmotion(emotion: string | null): EmotionData | undefined { return EMOTIONS.find(e => e.id === emotion) }
 
 function DinoCalma({ message, size = 'md' }: { message?: string; size?: 'sm' | 'md' | 'lg' }) {
-  const px = { sm: 80, md: 120, lg: 160 }[size]
+  const px = { sm: 100, md: 140, lg: 180 }[size]
   return (
     <div className="flex flex-col items-center gap-2">
       <img src="/assets/dino-ricon-calma.png" alt="" width={px} height={px} className="object-contain"
