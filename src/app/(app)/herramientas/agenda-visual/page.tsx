@@ -22,6 +22,66 @@ const KEYWORD_SUGGESTIONS = [
 const TIMER_PRESETS = [0, 1, 2, 3, 5, 10, 15, 30, 60, -1] as const
 const TIMER_CUSTOM = -1
 
+function ClockPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const marks = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+  const r = 78
+
+  return (
+    <div className="relative w-[220px] h-[220px] mx-auto">
+      {/* Center display */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span className="text-4xl font-extrabold text-brand tabular-nums">{value}</span>
+        <span className="text-sm font-bold text-text-muted ml-1">min</span>
+      </div>
+
+      {/* Connecting line from center to selected mark */}
+      {value > 0 && (() => {
+        const idx = marks.indexOf(value)
+        if (idx === -1) return null
+        const angle = (idx * 30 - 90) * (Math.PI / 180)
+        const ex = 110 + Math.cos(angle) * r
+        const ey = 110 + Math.sin(angle) * r
+        return (
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 220 220">
+            <line x1="110" y1="110" x2={ex} y2={ey} stroke="var(--color-brand, #44B39D)" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+        )
+      })()}
+
+      {marks.map((m) => {
+        const idx = marks.indexOf(m)
+        const angle = (idx * 30 - 90) * (Math.PI / 180)
+        const cx = 110 + Math.cos(angle) * r
+        const cy = 110 + Math.sin(angle) * r
+        const sel = value === m
+        return (
+          <button
+            key={m}
+            onClick={() => onChange(m || 1)}
+            className={`absolute w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all active:scale-90 ${
+              sel
+                ? 'bg-brand text-white border-brand scale-110 shadow-md'
+                : 'bg-white border-border text-text-secondary hover:border-brand hover:text-brand'
+            }`}
+            style={{ left: cx - 20, top: cy - 20 }}
+          >
+            {m}
+          </button>
+        )
+      })}
+
+      {/* Fine-tune buttons */}
+      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-3">
+        <button onClick={() => onChange(Math.max(1, value - 1))}
+          className="w-8 h-8 rounded-full bg-white border border-border text-text-secondary font-bold text-lg hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center">−</button>
+        <span className="text-xs font-bold text-text-muted w-16 text-center">ajuste fino</span>
+        <button onClick={() => onChange(Math.min(59, value + 1))}
+          className="w-8 h-8 rounded-full bg-white border border-border text-text-secondary font-bold text-lg hover:border-brand hover:text-brand transition-all active:scale-90 flex items-center justify-center">+</button>
+      </div>
+    </div>
+  )
+}
+
 type TimerStatus = 'idle' | 'running' | 'paused' | 'finished'
 
 interface TimerInfo {
@@ -123,7 +183,7 @@ function TimerConfigModal({
   const rawMins = currentSeconds > 0 ? Math.round(currentSeconds / 60) : 0
   const isCustom = rawMins > 0 && !(TIMER_PRESETS as readonly number[]).includes(rawMins)
   const [mins, setMins] = useState(isCustom ? TIMER_CUSTOM : rawMins)
-  const [customMins, setCustomMins] = useState(rawMins > 0 ? String(rawMins) : '')
+  const [customMins, setCustomMins] = useState(rawMins > 0 ? Math.max(1, rawMins) : 5)
   const [reward, setReward] = useState(currentReward ?? '')
   const [audioMode, setAudioMode] = useState<'none' | 'recorded' | 'tts'>(
     currentAudioData ? 'recorded' : currentUseTts ? 'tts' : 'none'
@@ -132,7 +192,7 @@ function TimerConfigModal({
   const [audioLabel, setAudioLabel] = useState(currentAudioLabel ?? '')
 
   const handleOk = () => {
-    const finalMins = mins === TIMER_CUSTOM ? Math.max(1, Number(customMins) || 0) : mins
+    const finalMins = mins === TIMER_CUSTOM ? Math.max(1, customMins) : mins
     onSetDuration(finalMins * 60)
     onSetReward(reward)
     if (audioMode === 'none') { onSetAudio(null); onSetTts(false) }
@@ -186,16 +246,8 @@ function TimerConfigModal({
               ))}
             </div>
             {mins === TIMER_CUSTOM && (
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  value={customMins}
-                  onChange={e => setCustomMins(e.target.value)}
-                  placeholder="Minutos"
-                  className="w-24 border border-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand"
-                />
-                <span className="text-xs text-text-muted">minutos</span>
+              <div className="mt-3">
+                <ClockPicker value={customMins} onChange={setCustomMins} />
               </div>
             )}
           </div>
@@ -264,12 +316,12 @@ function AddTaskForm({
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState<TaskCategory>('morning')
   const [timerMins, setTimerMins] = useState(0)
-  const [customMins, setCustomMins] = useState('')
+  const [customMins, setCustomMins] = useState(5)
   const [reward, setReward] = useState('')
 
   const handleSubmit = () => {
     if (!label.trim() || !keyword.trim()) return
-    const finalMins = timerMins === TIMER_CUSTOM ? Math.max(1, Number(customMins) || 0) : timerMins
+    const finalMins = timerMins === TIMER_CUSTOM ? Math.max(1, customMins) : timerMins
     onAdd({
       label: label.trim(),
       keyword: keyword.trim().toLowerCase(),
@@ -360,16 +412,8 @@ function AddTaskForm({
           ))}
         </div>
         {timerMins === TIMER_CUSTOM && (
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              type="number"
-              min={1}
-              value={customMins}
-              onChange={e => setCustomMins(e.target.value)}
-              placeholder="Minutos"
-              className="w-20 border border-border rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-brand"
-            />
-            <span className="text-xs text-text-muted">min</span>
+          <div className="mt-2">
+            <ClockPicker value={customMins} onChange={setCustomMins} />
           </div>
         )}
       </div>
