@@ -270,7 +270,7 @@ function BreathCircle({ config, onDone, speak }: { config: BreathConfig; onDone:
   )
 }
 
-function GroundingExercise({ onDone, soundEnabled }: { onDone: () => void; soundEnabled?: boolean }) {
+function GroundingExercise({ onDone, soundEnabled, speak }: { onDone: () => void; soundEnabled?: boolean; speak?: (t: string) => void }) {
   const steps = [
     { sense: 'vista', icon: '👁️', label: '5 cosas que ves', count: 5, hint: 'Mira a tu alrededor...' },
     { sense: 'tacto', icon: '✋', label: '4 cosas que tocas', count: 4, hint: 'Siente las texturas...' },
@@ -342,7 +342,7 @@ function GroundingExercise({ onDone, soundEnabled }: { onDone: () => void; sound
   )
 }
 
-function BubblePop({ onDone, soundEnabled }: { onDone: () => void; soundEnabled?: boolean }) {
+function BubblePop({ onDone, soundEnabled, speak }: { onDone: () => void; soundEnabled?: boolean; speak?: (t: string) => void }) {
   const [bubbles, setBubbles] = useState<{ id: number; x: number; y: number; size: number; color: string; popping: boolean }[]>([])
   const [score, setScore] = useState(0)
   const idRef = useRef(0)
@@ -394,7 +394,7 @@ function BubblePop({ onDone, soundEnabled }: { onDone: () => void; soundEnabled?
   )
 }
 
-function EnhancedSoundPlayer({ onDone, soundEnabled }: { onDone: () => void; soundEnabled?: boolean }) {
+function EnhancedSoundPlayer({ onDone, soundEnabled, speak }: { onDone: () => void; soundEnabled?: boolean; speak?: (t: string) => void }) {
   const [active, setActive] = useState<SoundType | null>(null)
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({})
   const ctxRef = useRef<AudioContext | null>(null)
@@ -837,7 +837,7 @@ export default function RinconCalmaPage() {
                 <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
                 {sessions.length > 0 && (
-                  <Button variant="ghost" size="sm" onClick={() => setShowHistory(true)}>Historial</Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setShowHistory(true); if (ttsEnabled) speakText("Historial") }}>Historial</Button>
                 )}
               </div>
               <div className="flex flex-col items-center gap-4">
@@ -896,7 +896,7 @@ export default function RinconCalmaPage() {
                 <div className="flex flex-col gap-2 w-full max-w-sm">
                   {filteredActivities.map(activity => (
                     <motion.button key={activity.id} whileTap={{ scale: 0.97 }}
-                      onClick={() => { setSelectedActivity(activity.id); setStep(activity.id === 'breathing' ? 'home' : activity.id as Step); if (activity.id !== 'breathing') ps('click') }}
+                      onClick={() => { setSelectedActivity(activity.id); setStep(activity.id === 'breathing' ? 'home' : activity.id as Step); if (activity.id !== 'breathing') ps('click'); if (ttsEnabled) speakText(activity.title) }}
                       className="w-full flex items-center gap-3 p-4 bg-white rounded-2xl border-2 border-border active:border-purple-300 active:bg-purple-50 transition-all text-left hover:border-purple-300"
                       aria-label={activity.title}
                     >
@@ -917,7 +917,7 @@ export default function RinconCalmaPage() {
                   <p className="text-xs font-bold text-text-secondary mb-2">Elige un patrón de respiración:</p>
                   <div className="flex flex-col gap-2">
                     {BREATH_PATTERNS.map(bp => (
-                      <button key={bp.id} onClick={() => { setSelectedBreath(bp.id); setStep('breathing'); ps('click') }}
+                      <button key={bp.id} onClick={() => { setSelectedBreath(bp.id); setStep('breathing'); ps('click'); if (ttsEnabled) speakText(bp.title) }}
                         className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all active:scale-[0.97] text-left ${
                           selectedBreath === bp.id ? 'bg-purple-100 border-purple-400' : 'bg-white border-border hover:border-purple-300'
                         }`}
@@ -1013,7 +1013,7 @@ export default function RinconCalmaPage() {
                 <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
-              <GroundingExercise onDone={handleActivityDone} soundEnabled={soundEnabled} />
+              <GroundingExercise onDone={handleActivityDone} soundEnabled={soundEnabled} speak={ttsEnabled ? speakText : undefined} />
             </StepWrapper>
           </div>
         )
@@ -1031,7 +1031,7 @@ export default function RinconCalmaPage() {
                 <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
-              <BubblePop onDone={handleActivityDone} soundEnabled={soundEnabled} />
+              <BubblePop onDone={handleActivityDone} soundEnabled={soundEnabled} speak={ttsEnabled ? speakText : undefined} />
             </StepWrapper>
           </div>
         )
@@ -1049,7 +1049,7 @@ export default function RinconCalmaPage() {
                 <VoiceToggle enabled={ttsEnabled} onToggle={() => setTtsEnabled(v => !v)} />
                 <SoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(v => !v)} />
               </div>
-              <EnhancedSoundPlayer onDone={handleActivityDone} soundEnabled={soundEnabled} />
+              <EnhancedSoundPlayer onDone={handleActivityDone} soundEnabled={soundEnabled} speak={ttsEnabled ? speakText : undefined} />
             </StepWrapper>
           </div>
         )

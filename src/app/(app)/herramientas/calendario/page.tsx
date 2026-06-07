@@ -15,6 +15,16 @@ import { useChildren } from '@/lib/hooks/useData'
 import { useCalendario } from '@/lib/hooks/useCalendario'
 import type { CalendarEvent, EventCategory, RepeatConfig, RepeatType } from '@/types'
 
+function speakText(text: string) {
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-ES'
+    u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
 type ViewMode = 'month' | 'week'
 
 const CATEGORIES: { id: EventCategory; label: string; emoji: string; color: string }[] = [
@@ -54,6 +64,7 @@ function CalendarPage() {
   const [dragEventId, setDragEventId] = useState<string | null>(null)
   const [showYearPicker, setShowYearPicker] = useState(false)
   const [filterCategory, setFilterCategory] = useState<EventCategory | 'all'>('all')
+  const [ttsEnabled, setTtsEnabled] = useState(true)
   const [yearInput, setYearInput] = useState('')
   const gridRef = useRef<HTMLDivElement>(null)
 
@@ -100,18 +111,22 @@ function CalendarPage() {
 
   const prevPeriod = () => {
     setCurrentDate(viewMode === 'month' ? subMonths(currentDate, 1) : subWeeks(currentDate, 1))
+    if (ttsEnabled) speakText('Anterior')
   }
   const nextPeriod = () => {
     setCurrentDate(viewMode === 'month' ? addMonths(currentDate, 1) : addWeeks(currentDate, 1))
+    if (ttsEnabled) speakText('Siguiente')
   }
   const goToday = () => {
     setCurrentDate(new Date())
     setSelectedDate(new Date())
+    if (ttsEnabled) speakText('Hoy')
   }
 
   const selectDay = (day: Date) => {
     setSelectedDate(day)
     openCreateEvent(day)
+    if (ttsEnabled) speakText(format(day, "EEEE d 'de' MMMM", { locale: es }))
   }
 
   const openCreateEvent = (date: Date) => {
@@ -124,6 +139,7 @@ function CalendarPage() {
     setEditingEvent(event)
     setModalDate(event.event_date)
     setShowEventModal(true)
+    if (ttsEnabled) speakText(event.title)
   }
 
   const handleDragStart = (eid: string) => {
@@ -176,6 +192,7 @@ function CalendarPage() {
       if (!id) { setErrorMsg('Error al crear el evento'); return false }
     }
     setShowEventModal(false)
+    if (ttsEnabled) speakText(editingEvent ? 'Evento actualizado' : 'Evento creado')
     return true
   }
 
@@ -200,7 +217,13 @@ function CalendarPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>← Atrás</Button>
+        <div className="flex items-center gap-1">
+        <button onClick={() => setTtsEnabled(!ttsEnabled)}
+          className="text-lg opacity-50 hover:opacity-100 transition-opacity"
+          title={ttsEnabled ? "Silenciar voz" : "Activar voz"}>
+          {ttsEnabled ? "🗣️" : "🚫"}
+        </button>
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>← Atrás</Button></div>
         <div>
           <h1 className="heading-page">Calendario</h1>
           <p className="text-body">Organiza tus actividades del mes</p>
@@ -354,12 +377,12 @@ function CalendarPage() {
           {/* Filtro por categoría */}
           <div className="overflow-x-auto mt-3 -mx-4 px-4">
             <div className="flex gap-1.5 w-max">
-            <button onClick={() => setFilterCategory('all')}
+            <button onClick={() => { setFilterCategory('all'); if (ttsEnabled) speakText('Todas las categorías') }}
               className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${filterCategory === 'all' ? 'bg-brand text-white shadow-sm' : 'bg-white/50 text-text-secondary hover:bg-white/80'}`}>
               Todas
             </button>
             {CATEGORIES.map(cat => (
-              <button key={cat.id} onClick={() => setFilterCategory(cat.id)}
+              <button key={cat.id} onClick={() => { setFilterCategory(cat.id); if (ttsEnabled) speakText(cat.label) }}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 ${filterCategory === cat.id ? 'ring-2 ring-offset-1 text-white' : 'bg-white/50 text-text-secondary hover:bg-white/80'}`}
                 style={filterCategory === cat.id ? { backgroundColor: cat.color } : undefined}>
                 <span>{cat.emoji}</span>
@@ -514,6 +537,7 @@ function CalendarPage() {
             key={editingEvent?.id ?? 'new'}
             event={editingEvent}
             date={modalDate}
+            ttsEnabled={ttsEnabled}
             onSave={handleSaveEvent}
             onDelete={editingEvent ? handleDeleteEvent : undefined}
             onClose={() => setShowEventModal(false)}
@@ -535,7 +559,7 @@ function CalendarPage() {
                   ? format(monthStart, "MMMM 'de' yyyy", { locale: es })
                   : `Semana del ${format(weekDays[0], "d 'de' MMMM", { locale: es })}`}
               </h3>
-              <button onClick={() => openCreateEvent(viewMode === 'month' ? monthStart : weekDays[0])}
+              <button onClick={() => { if (ttsEnabled) speakText('Añadir evento'); openCreateEvent(viewMode === 'month' ? monthStart : weekDays[0]) }}
                 className="text-sm font-bold text-brand hover:text-brand-dark transition-colors">
                 + Añadir
               </button>
@@ -606,9 +630,10 @@ function CalendarPage() {
   )
 }
 
-function EventModal({ event, date, onSave, onDelete, onClose }: {
+function EventModal({ event, date, ttsEnabled, onSave, onDelete, onClose }: {
   event: CalendarEvent | null
   date: string
+  ttsEnabled: boolean
     onSave: (data: {
       title: string; description: string;
       all_day: boolean; event_time: string | null;
@@ -693,7 +718,7 @@ function EventModal({ event, date, onSave, onDelete, onClose }: {
                 className="px-4 py-2 rounded-xl text-xs font-bold text-text-secondary hover:bg-surface-secondary transition-colors">
                 Cancelar
               </button>
-              <button type="button" onClick={() => { setConfirmingDelete(false); onDelete?.() }}
+              <button type="button" onClick={() => { setConfirmingDelete(false); onDelete?.(); if (ttsEnabled) speakText('Evento eliminado') }}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">
                 Sí, eliminar
               </button>

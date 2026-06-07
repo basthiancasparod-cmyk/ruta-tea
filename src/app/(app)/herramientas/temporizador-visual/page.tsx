@@ -7,6 +7,16 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { playSound } from '@/lib/sounds'
 
+function speakText(text: string) {
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-ES'
+    u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
 const SVG_R = 130
 const SVG_C = 2 * Math.PI * SVG_R
 
@@ -58,6 +68,7 @@ export default function TemporizadorVisualPage() {
   const [activityLabel, setActivityLabel] = useState('')
   const [showConfetti, setShowConfetti] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [ttsEnabled, setTtsEnabled] = useState(true)
   const pausedElapsedRef = useRef(0)
   const startTimeRef = useRef(0)
   const rafRef = useRef<number>(0)
@@ -83,12 +94,13 @@ export default function TemporizadorVisualPage() {
       setStatus('finished')
       setShowConfetti(true)
       playSound('celebration')
+      if (ttsEnabled) speakText('Tiempo cumplido!')
       return
     }
     if (soundEnabled) {
-      if (next <= 60 && !warningsFiredRef.current.has(60)) { warningsFiredRef.current.add(60); playSound('click') }
-      if (next <= 30 && !warningsFiredRef.current.has(30)) { warningsFiredRef.current.add(30); playSound('click') }
-      if (next <= 10 && !warningsFiredRef.current.has(10)) { warningsFiredRef.current.add(10); playSound('xp') }
+      if (next <= 60 && !warningsFiredRef.current.has(60)) { warningsFiredRef.current.add(60); if (ttsEnabled) speakText('Un minuto'); playSound('click') }
+      if (next <= 30 && !warningsFiredRef.current.has(30)) { warningsFiredRef.current.add(30); if (ttsEnabled) speakText('Treinta segundos'); playSound('click') }
+      if (next <= 10 && !warningsFiredRef.current.has(10)) { warningsFiredRef.current.add(10); if (ttsEnabled) speakText('Diez segundos'); playSound('xp') }
     }
     rafRef.current = requestAnimationFrame(tick)
   }, [soundEnabled])
@@ -107,6 +119,7 @@ export default function TemporizadorVisualPage() {
     clearTimer()
     startTimeRef.current = Date.now()
     rafRef.current = requestAnimationFrame(tick)
+    if (ttsEnabled) speakText((label || minutes + ' minutos') + ', comenzado!')
   }
 
   const handlePause = () => {
@@ -114,6 +127,7 @@ export default function TemporizadorVisualPage() {
     clearTimer()
     pausedElapsedRef.current = totalSeconds - remaining
     setStatus('paused')
+    if (ttsEnabled) speakText('Pausado')
   }
 
   const handleResume = () => {
@@ -121,6 +135,7 @@ export default function TemporizadorVisualPage() {
     setStatus('running')
     startTimeRef.current = Date.now()
     rafRef.current = requestAnimationFrame(tick)
+    if (ttsEnabled) speakText('Reanudado')
   }
 
   const handleCancel = () => {
@@ -130,11 +145,13 @@ export default function TemporizadorVisualPage() {
     setStatus('idle')
     setActivityLabel('')
     setShowConfetti(false)
+    if (ttsEnabled) speakText('Cancelado')
   }
 
   const handleCustomSet = () => {
     const mins = Math.min(parseInt(customMinutes) || 0, 120)
     if (mins < 1) return
+    if (ttsEnabled) speakText(mins + ' minutos personalizado')
     setDuration(mins, 'Personalizado')
     setCustomMinutes('')
   }
@@ -154,6 +171,7 @@ export default function TemporizadorVisualPage() {
     clearTimer()
     startTimeRef.current = Date.now()
     rafRef.current = requestAnimationFrame(tick)
+    if (ttsEnabled) speakText(extraMinutes + ' minuto extra')
   }
 
   useEffect(() => {
@@ -211,6 +229,11 @@ export default function TemporizadorVisualPage() {
 
       {/* Timer Display */}
       <motion.div layout className="bg-surface rounded-2xl shadow-md border border-border p-6 flex flex-col items-center relative">
+        <button onClick={() => setTtsEnabled(!ttsEnabled)}
+          className="absolute top-3 right-12 text-lg opacity-50 hover:opacity-100 transition-opacity z-10"
+          title={ttsEnabled ? "Silenciar voz" : "Activar voz"}>
+          {ttsEnabled ? "🗣️" : "🚫"}
+        </button>
         <button onClick={() => setSoundEnabled(!soundEnabled)}
           className="absolute top-3 right-3 text-lg opacity-50 hover:opacity-100 transition-opacity z-10"
           title={soundEnabled ? 'Silenciar' : 'Activar sonido'}>
@@ -314,7 +337,7 @@ export default function TemporizadorVisualPage() {
           </h2>
           <div className="flex flex-wrap gap-1.5">
             {QUICK_DURATIONS.map(m => (
-              <button key={m} onClick={() => setDuration(m)}
+              <button key={m} onClick={() => { if (ttsEnabled) speakText(m + ' minutos'); setDuration(m) }}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border-2 ${
                   totalSeconds === m * 60 && status !== 'idle'
                     ? 'border-brand bg-brand text-white shadow-sm'
@@ -364,7 +387,7 @@ export default function TemporizadorVisualPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  onClick={() => handlePreset(p)}
+                  onClick={() => { if (ttsEnabled) speakText(p.label + ', ' + p.minutes + ' minutos'); handlePreset(p) }}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border-2 ${
                     isActive
                       ? `${p.color} shadow-sm`

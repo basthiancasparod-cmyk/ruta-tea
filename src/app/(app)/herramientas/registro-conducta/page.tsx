@@ -9,6 +9,16 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import type { TokenSession, BehaviorLog, BehaviorType } from '@/types'
 
+function speakText(text: string) {
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-ES'
+    u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
 function localDateStr(d?: Date) {
   const date = d ?? new Date()
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -71,6 +81,7 @@ export default function RegistroConductaPage() {
   const [logs, setLogs] = useState<BehaviorLog[]>([])
   const [loading, setLoading] = useState(true)
   const [mood, setMood] = useState<number>(3)
+  const [ttsEnabled, setTtsEnabled] = useState(true)
 
   const [logType, setLogType] = useState<BehaviorType>('positive')
   const [logIntensity, setLogIntensity] = useState<number>(3)
@@ -162,6 +173,7 @@ export default function RegistroConductaPage() {
       })
       if (!res.ok) throw new Error('Error al añadir token')
       setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, earned_tokens: earned, is_completed: completed } : s))
+      if (ttsEnabled) speakText(completed ? `¡Recompensa conseguida!` : `¡Buen trabajo!`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Error al añadir token')
     }
@@ -266,6 +278,7 @@ export default function RegistroConductaPage() {
       if (logImagePreview) URL.revokeObjectURL(logImagePreview)
       setLogImage(null)
       setLogImagePreview(null)
+      if (ttsEnabled) speakText(logType === 'positive' ? '¡Bien!' : logType === 'challenging' ? 'Registrado' : 'Anotado')
       if (logType === 'positive') {
         const incomplete = sessions.find(s => !s.is_completed)
         if (incomplete) handleAddToken(incomplete.id)
@@ -345,6 +358,9 @@ export default function RegistroConductaPage() {
           <h1 className="heading-page">Registro de Conducta</h1>
           <p className="text-body">Refuerzo positivo y seguimiento diario</p>
         </div>
+        <button onClick={() => setTtsEnabled(!ttsEnabled)}
+          className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
+          title={ttsEnabled ? 'Silenciar voz' : 'Activar voz'}>{ttsEnabled ? '🗣️' : '🚫'}</button>
         <p className="text-xs font-bold text-text-muted text-right shrink-0">
           {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
@@ -419,7 +435,7 @@ export default function RegistroConductaPage() {
           <div>
             <div className="flex gap-0.5 justify-center">
               {[5, 4, 3, 2, 1].map(v => (
-                <button key={v} onClick={() => setMood(v)}
+                <button key={v} onClick={() => { setMood(v); if (ttsEnabled) speakText(['Triste', 'Preocupado', 'Neutral', 'Contento', 'Feliz'][v - 1]) }}
                   className={`text-lg transition-all ${mood === v ? 'scale-125' : 'opacity-30 hover:opacity-60'}`}>
                   {['😢', '😟', '😐', '🙂', '😄'][v - 1]}
                 </button>
@@ -517,7 +533,7 @@ export default function RegistroConductaPage() {
 
           <div className="flex gap-1.5 mb-4">
             {(['positive', 'challenging', 'neutral'] as BehaviorType[]).map(type => (
-              <button key={type} onClick={() => setLogType(type)}
+              <button key={type} onClick={() => { setLogType(type); if (ttsEnabled) speakText(type === 'positive' ? 'Positiva' : type === 'challenging' ? 'Reto' : 'Neutral') }}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                   logType === type
                     ? type === 'positive' ? 'bg-green-500 text-white shadow-sm' : type === 'challenging' ? 'bg-amber-500 text-white shadow-sm' : 'bg-gray-400 text-white shadow-sm'
@@ -530,7 +546,7 @@ export default function RegistroConductaPage() {
 
           <div className="flex flex-wrap gap-1.5 mb-3">
             {BEHAVIOR_PRESETS.filter(p => p.type === logType).map(p => (
-              <button key={p.label} onClick={() => { setLogPreset(p); setLogDesc('') }}
+              <button key={p.label} onClick={() => { setLogPreset(p); setLogDesc(''); if (ttsEnabled) speakText(p.label) }}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${
                   logPreset?.label === p.label
                     ? logType === 'positive' ? 'bg-green-100 text-green-700 border border-green-300' : logType === 'challenging' ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-gray-100 text-gray-700 border border-gray-300'

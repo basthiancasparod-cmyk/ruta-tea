@@ -8,6 +8,16 @@ import { Pictogram } from '@/components/ui/Pictogram'
 import { useChildren } from '@/lib/hooks/useData'
 import { useAgenda, type AgendaTask, type TaskCategory } from '@/lib/hooks/useAgenda'
 
+function speakText(text: string) {
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-ES'
+    u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
 const CATEGORY_META: Record<TaskCategory, { label: string; emoji: string; color: string }> = {
   morning:   { label: 'Mañana', emoji: '🌅', color: 'text-amber-500' },
   afternoon: { label: 'Tarde',  emoji: '☀️', color: 'text-orange-500' },
@@ -706,6 +716,7 @@ function TaskCard({
   onPauseTimer,
   onResetTimer,
   onUpdateReward,
+  onSpeak,
   onUpdateTts,
   onUpdateAudio,
   onUpdateAudioLabel,
@@ -719,6 +730,7 @@ function TaskCard({
   onPauseTimer: () => void
   onResetTimer: () => void
   onUpdateReward: (reward: string) => void
+  onSpeak: (text: string) => void
   onUpdateTts: (use_tts: boolean) => void
   onUpdateAudio: (audio_data: string | null) => void
   onUpdateAudioLabel: (label: string) => void
@@ -741,6 +753,7 @@ function TaskCard({
     if (!isDone && cardRef.current) {
       setShowConfetti(true)
       setTimeout(() => setShowConfetti(false), 1000)
+      if (task.label) onSpeak(task.label + '! Bien hecho!')
     }
     onToggle()
   }
@@ -921,6 +934,7 @@ export default function AgendaVisualPage() {
   const [activeCategory, setActiveCategory] = useState<TaskCategory | 'all'>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [celebrate100, setCelebrate100] = useState(false)
+  const [ttsEnabled, setTtsEnabled] = useState(true)
   const timerRef = useRef<Record<string, TimerInfo>>({})
   const [timerTick, setTimerTick] = useState(0)
   const intervalsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
@@ -950,6 +964,7 @@ export default function AgendaVisualPage() {
         timerRef.current[taskId] = { remaining: 0, status: 'finished' }
         clearInterval(intervalsRef.current[taskId])
         delete intervalsRef.current[taskId]
+        if (ttsEnabled) { const task = tasks.find(t => t.id === taskId); if (task) { try { const u = new SpeechSynthesisUtterance(task.label + ' terminado!'); u.lang = 'es-ES'; u.rate = 0.85; speechSynthesis.speak(u) } catch {} } }
         playAlarmSound()
         pokeTimer()
       } else {
@@ -985,6 +1000,7 @@ export default function AgendaVisualPage() {
   }, [])
 
   const handleReset = useCallback(async () => {
+    if (ttsEnabled) { try { const u = new SpeechSynthesisUtterance('Rutina reiniciada'); u.lang = 'es-ES'; u.rate = 0.85; speechSynthesis.speak(u) } catch {} }
     timerRef.current = {}
     Object.values(intervalsRef.current).forEach(id => clearInterval(id))
     intervalsRef.current = {}
@@ -1017,6 +1033,7 @@ export default function AgendaVisualPage() {
   useEffect(() => {
     if (progress === 100 && tasks.length > 0) {
       setCelebrate100(true)
+      if (ttsEnabled) { try { const u = new SpeechSynthesisUtterance('Rutina completada!'); u.lang = 'es-ES'; u.rate = 0.85; speechSynthesis.speak(u) } catch {} }
       const t = setTimeout(() => setCelebrate100(false), 3000)
       return () => clearTimeout(t)
     }
@@ -1072,7 +1089,10 @@ export default function AgendaVisualPage() {
           <h1 className="heading-page">Agenda Visual</h1>
           <p className="text-body">Organiza la rutina diaria con pictogramas</p>
         </div>
-        {agenda && (
+        <button onClick={() => setTtsEnabled(!ttsEnabled)}
+          className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
+          title={ttsEnabled ? "Silenciar voz" : "Activar voz"}>{ttsEnabled ? "\u{1F5E3}\u{FE0F}" : "\u{1F6AB}"}</button>
+          {agenda && (
           <span className="text-xs bg-surface border border-border rounded-full px-2 py-0.5 text-text-muted shrink-0">
             {agenda.name}
           </span>
@@ -1082,6 +1102,8 @@ export default function AgendaVisualPage() {
       <div className="flex flex-col items-center gap-2 text-center">
         <img src="/assets/dino-agenda-visual.png" alt="" width={138} height={161} className="object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
         <p className="text-base font-bold text-text-primary">{lumiMessage}</p>
+        {/* Speak lumiMessage on initial render and progress changes */}
+        {(() => { if (ttsEnabled) { try { const u = new SpeechSynthesisUtterance(lumiMessage.replace(/[^\w\sáéíóúüñÁÉÍÓÚÜÑ]/g, "")); u.lang = "es-ES"; u.rate = 0.85; speechSynthesis.speak(u) } catch {} } return null })()}
       </div>
 
       <div className="relative">
@@ -1190,7 +1212,7 @@ export default function AgendaVisualPage() {
         {(['all', 'morning', 'afternoon', 'evening'] as const).map(cat => (
           <button
             key={cat}
-            onClick={() => setActiveCategory(cat)}
+            onClick={() => { setActiveCategory(cat); if (ttsEnabled) speakText(cat === "all" ? "Todas" : CATEGORY_META[cat].label) }}
             className={`px-3 py-1.5 rounded-full font-bold text-xs transition-all whitespace-nowrap ${
               activeCategory === cat
                 ? 'bg-brand text-white'
@@ -1222,6 +1244,7 @@ export default function AgendaVisualPage() {
               <TaskCard
                 task={task}
                 onToggle={() => toggleDone(task.id)}
+                onSpeak={(text) => { if (ttsEnabled) { try { const u = new SpeechSynthesisUtterance(text); u.lang = 'es-ES'; u.rate = 0.85; speechSynthesis.speak(u) } catch {} } }}
                 onDelete={() => deleteTask(task.id)}
                 onSetTimerDuration={(seconds) => updateTimerDuration(task.id, seconds)}
                 onStartTimer={() => startTimer(task.id)}
