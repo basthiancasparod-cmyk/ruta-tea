@@ -217,17 +217,16 @@ function CalendarPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>← Atrás</Button>
+        <div className="flex-1">
+          <h1 className="heading-page">Calendario</h1>
+          <p className="text-body">Organiza tus actividades del mes</p>
+        </div>
         <button onClick={() => setTtsEnabled(!ttsEnabled)}
           className="text-lg opacity-50 hover:opacity-100 transition-opacity"
           title={ttsEnabled ? "Silenciar voz" : "Activar voz"}>
           {ttsEnabled ? "🗣️" : "🚫"}
         </button>
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>← Atrás</Button></div>
-        <div>
-          <h1 className="heading-page">Calendario</h1>
-          <p className="text-body">Organiza tus actividades del mes</p>
-        </div>
       </div>
 
       <div className="flex flex-col items-center gap-2">
