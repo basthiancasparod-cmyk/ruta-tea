@@ -217,18 +217,16 @@ export default function HistoriasSocialesPage() {
           <div className="flex-1 min-w-0">
             <h1 className="heading-page truncate">{selectedStory.emoji} {selectedStory.title}</h1>
           </div>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setSoundEnabled(v => !v)}
-              className="text-lg shrink-0 opacity-60 hover:opacity-100 transition-opacity"
-              title={soundEnabled ? 'Silenciar' : 'Activar sonido'}
-              aria-label={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}
-            >{soundEnabled ? '🔊' : '🔇'}</button>
-            <button onClick={() => setTtsEnabled(v => !v)}
-              className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
-              title={ttsEnabled ? 'Desactivar voz' : 'Activar voz'}
-              aria-label={ttsEnabled ? 'Desactivar lectura en voz alta' : 'Activar lectura en voz alta'}
-            >{ttsEnabled ? '🗣️' : '🚫'}</button>
-          </div>
+          <button onClick={() => setSoundEnabled(v => !v)}
+            className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
+            title={soundEnabled ? 'Silenciar' : 'Activar sonido'}
+            aria-label={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}
+          >{soundEnabled ? '🔊' : '🔇'}</button>
+          <button onClick={() => setTtsEnabled(v => !v)}
+            className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
+            title={ttsEnabled ? 'Desactivar voz' : 'Activar voz'}
+            aria-label={ttsEnabled ? 'Desactivar lectura en voz alta' : 'Activar lectura en voz alta'}
+          >{ttsEnabled ? '🗣️' : '🚫'}</button>
         </div>
 
         <div className="flex items-center gap-2">
