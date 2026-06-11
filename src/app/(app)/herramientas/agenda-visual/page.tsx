@@ -1039,7 +1039,16 @@ export default function AgendaVisualPage() {
     }
   }, [progress, tasks.length])
 
-
+  useEffect(() => {
+    if (ttsEnabled && !loading) {
+      try {
+        const u = new SpeechSynthesisUtterance(lumiMessage.replace(/[^\w\sáéíóúüñÁÉÍÓÚÜÑ]/g, ""))
+        u.lang = "es-ES"
+        u.rate = 0.85
+        speechSynthesis.speak(u)
+      } catch {}
+    }
+  }, [lumiMessage])
 
   if (loading) {
     return (
@@ -1102,8 +1111,6 @@ export default function AgendaVisualPage() {
       <div className="flex flex-col items-center gap-2 text-center">
         <img src="/assets/dino-agenda-visual.png" alt="" width={138} height={161} className="object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
         <p className="text-base font-bold text-text-primary">{lumiMessage}</p>
-        {/* Speak lumiMessage on initial render and progress changes */}
-        {(() => { if (ttsEnabled) { try { const u = new SpeechSynthesisUtterance(lumiMessage.replace(/[^\w\sáéíóúüñÁÉÍÓÚÜÑ]/g, "")); u.lang = "es-ES"; u.rate = 0.85; speechSynthesis.speak(u) } catch {} } return null })()}
       </div>
 
       <div className="relative">
