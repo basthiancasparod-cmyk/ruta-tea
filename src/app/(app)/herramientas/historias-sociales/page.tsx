@@ -224,10 +224,10 @@ export default function HistoriasSocialesPage() {
               aria-label={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}
             >{soundEnabled ? '🔊' : '🔇'}</button>
             <button onClick={() => setTtsEnabled(v => !v)}
-              className={`text-sm shrink-0 transition-opacity ${ttsEnabled ? 'opacity-80' : 'opacity-40'}`}
+              className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
               title={ttsEnabled ? 'Desactivar voz' : 'Activar voz'}
               aria-label={ttsEnabled ? 'Desactivar lectura en voz alta' : 'Activar lectura en voz alta'}
-            >{ttsEnabled ? '🗣️' : '🔇'}</button>
+            >{ttsEnabled ? '🗣️' : '🚫'}</button>
           </div>
         </div>
 

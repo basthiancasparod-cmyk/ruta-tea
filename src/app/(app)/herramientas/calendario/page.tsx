@@ -223,7 +223,7 @@ function CalendarPage() {
           <p className="text-body">Organiza tus actividades del mes</p>
         </div>
         <button onClick={() => setTtsEnabled(!ttsEnabled)}
-          className="text-lg opacity-50 hover:opacity-100 transition-opacity"
+          className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
           title={ttsEnabled ? "Silenciar voz" : "Activar voz"}>
           {ttsEnabled ? "🗣️" : "🚫"}
         </button>

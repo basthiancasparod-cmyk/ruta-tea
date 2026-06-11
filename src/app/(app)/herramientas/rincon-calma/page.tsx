@@ -707,7 +707,7 @@ function SoundToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => 
 function VoiceToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
     <button onClick={onToggle}
-      className="text-lg shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+      className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
       title={enabled ? 'Silenciar voz' : 'Activar voz'}
       aria-label={enabled ? 'Silenciar voz' : 'Activar voz'}
     >

@@ -406,13 +406,13 @@ function PrimeroDespuesPage() {
           <h1 className="heading-page">Primero - Después</h1>
           <p className="text-body">Organiza tareas con una recompensa al final</p>
         </div>
+        <button onClick={() => setTtsEnabled(!ttsEnabled)}
+          className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
+          title={ttsEnabled ? 'Silenciar voz' : 'Activar voz'}>{ttsEnabled ? '🗣️' : '🚫'}</button>
         <div className="flex items-center gap-1.5">
           <button onClick={() => setSoundEnabled(!soundEnabled)}
             className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100"
             title={soundEnabled ? 'Silenciar' : 'Activar sonido'}>{soundEnabled ? '🔊' : '🔇'}</button>
-          <button onClick={() => setTtsEnabled(!ttsEnabled)}
-            className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100"
-            title={ttsEnabled ? 'Silenciar voz' : 'Activar voz'}>{ttsEnabled ? '🗣️' : '🚫'}</button>
           <button onClick={toggleFullscreen}
             className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 text-base transition-all ${fullscreen ? 'border-brand bg-brand/10 text-brand' : 'border-border opacity-60 hover:opacity-100 hover:border-brand'}`}
             title={fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}>⛶</button>

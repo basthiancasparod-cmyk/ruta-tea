@@ -201,6 +201,11 @@ export default function TemporizadorVisualPage() {
           <h1 className="heading-page">Temporizador Visual</h1>
           <p className="text-body">Ayuda visual para entender el paso del tiempo</p>
         </div>
+        <button onClick={() => setTtsEnabled(!ttsEnabled)}
+          className="w-9 h-9 rounded-xl flex items-center justify-center border-2 border-border text-base hover:border-brand transition-all opacity-60 hover:opacity-100 shrink-0"
+          title={ttsEnabled ? "Silenciar voz" : "Activar voz"}>
+          {ttsEnabled ? "🗣️" : "🚫"}
+        </button>
       </div>
 
       {/* Confetti overlay */}
@@ -229,11 +234,6 @@ export default function TemporizadorVisualPage() {
 
       {/* Timer Display */}
       <motion.div layout className="bg-surface rounded-2xl shadow-md border border-border p-6 flex flex-col items-center relative">
-        <button onClick={() => setTtsEnabled(!ttsEnabled)}
-          className="absolute top-3 right-12 text-lg opacity-50 hover:opacity-100 transition-opacity z-10"
-          title={ttsEnabled ? "Silenciar voz" : "Activar voz"}>
-          {ttsEnabled ? "🗣️" : "🚫"}
-        </button>
         <button onClick={() => setSoundEnabled(!soundEnabled)}
           className="absolute top-3 right-3 text-lg opacity-50 hover:opacity-100 transition-opacity z-10"
           title={soundEnabled ? 'Silenciar' : 'Activar sonido'}>
